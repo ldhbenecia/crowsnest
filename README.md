@@ -67,7 +67,7 @@ cd crowsnest
 
 ## Usage
 
-1. Click the mast icon in the menu bar, then **파이프라인 고르기** (pick pipelines) or the `+` button.
+1. Click the anchor icon in the menu bar, then **파이프라인 고르기** (pick pipelines) or the `+` button.
 2. Pipelines are grouped by profile. Search and tick the ones you want to watch.
 3. Click a row to expand every stage and action. Hover a row to reveal a button that opens it in the AWS console.
 

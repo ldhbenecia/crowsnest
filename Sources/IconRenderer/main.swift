@@ -26,32 +26,12 @@ func drawIcon(in context: CGContext, size: CGFloat) {
         CGColor(colorSpace: colorSpace, components: [red / 255, green / 255, blue / 255, alpha])!
     }
 
-    // 그림자
+    // 바탕 — 빛 번짐 · 그라데이션 없이 평평한 검정, 그림자는 macOS 아이콘 격자 기본만
     context.saveGState()
     context.setShadow(offset: CGSize(width: 0, height: 12), blur: 28, color: color(0, 0, 0, 0.45))
     context.addPath(tilePath)
-    context.setFillColor(color(10, 10, 16))
+    context.setFillColor(color(14, 14, 18))
     context.fillPath()
-    context.restoreGState()
-
-    // 바탕 — 위는 거의 검정, 아래로 갈수록 아주 옅게 남색
-    context.saveGState()
-    context.addPath(tilePath)
-    context.clip()
-    let background = CGGradient(
-        colorsSpace: colorSpace,
-        colors: [color(14, 14, 22), color(8, 8, 12), color(20, 18, 46)] as CFArray,
-        locations: [0, 0.55, 1]
-    )!
-    context.drawLinearGradient(background, start: CGPoint(x: 512, y: 100), end: CGPoint(x: 512, y: 924), options: [])
-
-    // 망루 뒤로 번지는 인디고 빛
-    let glow = CGGradient(
-        colorsSpace: colorSpace,
-        colors: [color(99, 102, 241, 0.42), color(99, 102, 241, 0)] as CFArray,
-        locations: [0, 1]
-    )!
-    context.drawRadialGradient(glow, startCenter: CGPoint(x: 512, y: 470), startRadius: 0, endCenter: CGPoint(x: 512, y: 470), endRadius: 420, options: [])
     context.restoreGState()
 
     // 테두리 — 어두운 Dock 위에서도 모서리가 보이게
@@ -62,18 +42,11 @@ func drawIcon(in context: CGContext, size: CGFloat) {
     context.strokePath()
     context.restoreGState()
 
-    // 글리프 — 위는 밝은 인디고, 아래는 진한 인디고
+    // 글리프 — 단색 인디고
     let glyphRect = CGRect(x: 512 - 290, y: 512 - 290, width: 580, height: 580)
-    context.saveGState()
     context.addPath(CrowsnestGlyph.path(in: glyphRect))
-    context.clip()
-    let glyphFill = CGGradient(
-        colorsSpace: colorSpace,
-        colors: [color(199, 210, 254), color(129, 140, 248), color(79, 70, 229)] as CFArray,
-        locations: [0, 0.45, 1]
-    )!
-    context.drawLinearGradient(glyphFill, start: CGPoint(x: 512, y: glyphRect.minY), end: CGPoint(x: 512, y: glyphRect.maxY), options: [])
-    context.restoreGState()
+    context.setFillColor(color(129, 140, 248))
+    context.fillPath()
 }
 
 let sizes: [(name: String, pixels: Int)] = [
