@@ -19,35 +19,21 @@ enum StatusItemMenu {
                 || event.modifierFlags.contains(.control)
             guard isContextClick else { return event }
             if event.type == .rightMouseDown || event.type == .leftMouseDown {
-                showMenu(window: window, button: button)
+                showMenu(in: contentView, below: button)
             }
             // 떼는 이벤트가 SwiftUI 버튼에 닿으면 클릭으로 보고 패널을 열어서 같이 삼킴
             return nil
         }
     }
 
-    /// 상태 항목이 직접 메뉴를 띄우면 시스템이 다른 메뉴바 앱과 똑같이 눌림 표시 · 아이콘 아래 위치로 그려줌
-    /// 버튼에 highlight 를 걸면 SwiftUI 가 쥔 버튼이라 안 그려져서 이 방법을 씀
-    private static func showMenu(window: NSWindow, button: NSButton) {
-        let menu = makeMenu()
-        // 메뉴가 떠 있는 동안 버튼 동작을 떼어둬야 메뉴를 닫을 때 패널이 같이 열리지 않음
-        let action = button.action
-        let target = button.target
-        button.action = nil
-        button.target = nil
-        defer {
-            button.action = action
-            button.target = target
-        }
-        // statusItem · popUpStatusItemMenu: 는 공개 API 가 아니거나 지원 중단이라 없을 때를 대비해 확인하고 부름
-        let popUpSelector = NSSelectorFromString("popUpStatusItemMenu:")
-        guard window.responds(to: NSSelectorFromString("statusItem")),
-              let statusItem = window.value(forKey: "statusItem") as? NSStatusItem,
-              statusItem.responds(to: popUpSelector) else {
-            menu.popUp(positioning: nil, at: NSPoint(x: 0, y: button.bounds.maxY + 6), in: button)
-            return
-        }
-        statusItem.perform(popUpSelector, with: menu)
+    /// 메뉴는 아이콘 바로 아래에 띄우고, 떠 있는 동안 다른 메뉴바 앱처럼 아이콘 뒤에 눌림 배경을 깔아둠
+    /// 상태 항목에 메뉴를 맡기면 SwiftUI 가 패널까지 같이 열고, 버튼 highlight 는 SwiftUI 가 쥔 버튼이라 안 그려져서 직접 그림
+    private static func showMenu(in contentView: NSView, below button: NSButton) {
+        let pill = PressedBackgroundView(frame: contentView.bounds.insetBy(dx: 0, dy: 3.5))
+        contentView.addSubview(pill, positioned: .below, relativeTo: nil)
+        defer { pill.removeFromSuperview() }
+        // 버튼은 뒤집힌 좌표라 maxY 가 아래쪽 — 메뉴가 닫힐 때까지 돌아오지 않음
+        makeMenu().popUp(positioning: nil, at: NSPoint(x: 0, y: button.bounds.maxY + 6), in: button)
     }
 
     /// 상태 막대 창 안에서 아이콘을 그리는 버튼(NSStatusBarButton)
@@ -85,4 +71,27 @@ private final class ClosureMenuItem: NSMenuItem {
     @objc private func runHandler() {
         handler()
     }
+}
+
+/// 메뉴바 아이템이 눌렸을 때의 알약 모양 배경 — 메뉴바 글자색에 맞춰 옅게 깔아서 다크 · 라이트 둘 다 자연스러움
+private final class PressedBackgroundView: NSView {
+    override init(frame: NSRect) {
+        super.init(frame: frame)
+        wantsLayer = true
+        layer?.cornerRadius = frame.height / 2
+        layer?.cornerCurve = .continuous
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) {
+        fatalError("코드로만 만듦")
+    }
+
+    override func updateLayer() {
+        effectiveAppearance.performAsCurrentDrawingAppearance {
+            layer?.backgroundColor = NSColor.labelColor.withAlphaComponent(0.16).cgColor
+        }
+    }
+
+    override var wantsUpdateLayer: Bool { true }
 }
