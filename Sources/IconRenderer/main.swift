@@ -1,15 +1,17 @@
 import AppKit
 import CrowsnestKit
 
-// 앱 아이콘을 코드로 그려서 .iconset 으로 내보냄 — script/make_icon.sh 가 iconutil 로 .icns 를 만듦
-// 메뉴바 템플릿 글리프와 같은 경로를 써서 둘이 늘 같은 모양
+// 앱 아이콘과 dmg 창 배경을 코드로 그림 — script/make_icon.sh 가 iconutil · tiffutil 로 .icns · .tiff 를 만듦
+// 아이콘은 메뉴바 템플릿 글리프와 같은 경로를 써서 둘이 늘 같은 모양
 
-guard CommandLine.arguments.count == 2 else {
-    FileHandle.standardError.write(Data("usage: IconRenderer <output.iconset>\n".utf8))
+guard CommandLine.arguments.count == 3 else {
+    FileHandle.standardError.write(Data("usage: IconRenderer <output.iconset> <dmg-background-directory>\n".utf8))
     exit(2)
 }
 let outputDirectory = URL(fileURLWithPath: CommandLine.arguments[1])
+let backgroundDirectory = URL(fileURLWithPath: CommandLine.arguments[2])
 try FileManager.default.createDirectory(at: outputDirectory, withIntermediateDirectories: true)
+try FileManager.default.createDirectory(at: backgroundDirectory, withIntermediateDirectories: true)
 
 /// 1024 캔버스 기준 — macOS 아이콘 격자의 824 둥근 사각형과 아래로 떨어지는 그림자
 func drawIcon(in context: CGContext, size: CGFloat) {
@@ -57,13 +59,65 @@ let sizes: [(name: String, pixels: Int)] = [
     ("icon_512x512", 512), ("icon_512x512@2x", 1024),
 ]
 
-for (name, pixels) in sizes {
+func render(width: Int, height: Int, to url: URL, draw: (CGContext) -> Void) throws {
     let bitmap = NSBitmapImageRep(
-        bitmapDataPlanes: nil, pixelsWide: pixels, pixelsHigh: pixels, bitsPerSample: 8, samplesPerPixel: 4,
+        bitmapDataPlanes: nil, pixelsWide: width, pixelsHigh: height, bitsPerSample: 8, samplesPerPixel: 4,
         hasAlpha: true, isPlanar: false, colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0
     )!
     let graphicsContext = NSGraphicsContext(bitmapImageRep: bitmap)!
-    drawIcon(in: graphicsContext.cgContext, size: CGFloat(pixels))
+    NSGraphicsContext.current = graphicsContext
+    draw(graphicsContext.cgContext)
     graphicsContext.flushGraphics()
-    try bitmap.representation(using: .png, properties: [:])!.write(to: outputDirectory.appending(path: "\(name).png"))
+    try bitmap.representation(using: .png, properties: [:])!.write(to: url)
+}
+
+for (name, pixels) in sizes {
+    try render(width: pixels, height: pixels, to: outputDirectory.appending(path: "\(name).png")) { context in
+        drawIcon(in: context, size: CGFloat(pixels))
+    }
+}
+
+/// dmg 창 660 x 400 — 왼쪽 앱(170, 186) · 오른쪽 Applications(490, 186) 사이에 화살표 하나, 아래에 안내 한 줄
+/// 아이콘 위치는 script/dmg_settings.py 와 맞춰야 함
+func drawDMGBackground(in context: CGContext, scale: CGFloat) {
+    context.scaleBy(x: scale, y: scale)
+    context.translateBy(x: 0, y: 400)
+    context.scaleBy(x: 1, y: -1)
+
+    // 아이콘 바탕과 같은 평평한 검정
+    context.setFillColor(CGColor(srgbRed: 22 / 255, green: 22 / 255, blue: 27 / 255, alpha: 1))
+    context.fill(CGRect(x: 0, y: 0, width: 660, height: 400))
+
+    // 화살표 — 몸통과 꺾쇠
+    let arrowColor = CGColor(srgbRed: 1, green: 1, blue: 1, alpha: 0.32)
+    context.setStrokeColor(arrowColor)
+    context.setLineWidth(3)
+    context.setLineCap(.round)
+    context.setLineJoin(.round)
+    context.move(to: CGPoint(x: 268, y: 186))
+    context.addLine(to: CGPoint(x: 390, y: 186))
+    context.move(to: CGPoint(x: 376, y: 172))
+    context.addLine(to: CGPoint(x: 392, y: 186))
+    context.addLine(to: CGPoint(x: 376, y: 200))
+    context.strokePath()
+
+    // 안내 — AppKit 글자는 뒤집지 않은 좌표에서 그려야 바로 섬
+    let caption = "Drag Crowsnest to Applications to install" as NSString
+    let attributes: [NSAttributedString.Key: Any] = [
+        .font: NSFont.systemFont(ofSize: 13, weight: .medium),
+        .foregroundColor: NSColor(white: 1, alpha: 0.45),
+    ]
+    let size = caption.size(withAttributes: attributes)
+    context.saveGState()
+    context.scaleBy(x: 1, y: -1)
+    context.translateBy(x: 0, y: -400)
+    caption.draw(at: NSPoint(x: (660 - size.width) / 2, y: 400 - 330 - size.height / 2), withAttributes: attributes)
+    context.restoreGState()
+}
+
+for scale in [1, 2] {
+    let name = scale == 1 ? "background.png" : "background@2x.png"
+    try render(width: 660 * scale, height: 400 * scale, to: backgroundDirectory.appending(path: name)) { context in
+        drawDMGBackground(in: context, scale: CGFloat(scale))
+    }
 }

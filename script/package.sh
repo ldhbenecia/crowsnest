@@ -16,13 +16,19 @@ fi
 
 APP_BUNDLE="$("$SCRIPT_DIR/bundle.sh" release)"
 
-STAGING="$(mktemp -d)"
-trap 'rm -rf "$STAGING"' EXIT
-cp -R "$APP_BUNDLE" "$STAGING/"
-ln -s /Applications "$STAGING/Applications"
+# dmg 창 배치는 dmgbuild 로 — 버전을 고정해서 .build 아래 가상환경에 한 번만 깔아 둠
+DMGBUILD_ENV="$ROOT_DIR/.build/dmgbuild-venv"
+if [[ ! -x "$DMGBUILD_ENV/bin/dmgbuild" ]]; then
+  python3 -m venv "$DMGBUILD_ENV"
+  "$DMGBUILD_ENV/bin/pip" install --quiet --disable-pip-version-check "dmgbuild==1.6.5"
+fi
 
 rm -f "$DMG"
-hdiutil create -volname "$APP_NAME $VERSION" -srcfolder "$STAGING" -fs APFS -format UDZO -ov "$DMG" >/dev/null
+"$DMGBUILD_ENV/bin/dmgbuild" \
+  -s "$SCRIPT_DIR/dmg_settings.py" \
+  -D app="$APP_BUNDLE" \
+  -D background="$ROOT_DIR/Resources/dmg-background.tiff" \
+  "$APP_NAME $VERSION" "$DMG" >/dev/null
 
 # 받은 사람이 shasum -c 로 확인할 수 있게 파일 이름만 적음
 (cd "$(dirname "$DMG")" && shasum -a 256 "$(basename "$DMG")" >"$(basename "$DMG").sha256")
