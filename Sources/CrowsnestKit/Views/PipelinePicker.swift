@@ -70,7 +70,6 @@ struct PipelinePicker: View {
                 .buttonStyle(.borderedProminent)
                 .tint(.crowsnestAccent)
                 .controlSize(.small)
-                .pointingHandCursor()
         }
         .padding(.horizontal, 8)
         .padding(.vertical, 9)
@@ -152,6 +151,5 @@ private struct PickerRow: View {
         }
         .buttonStyle(.plain)
         .onHover { isHovered = $0 }
-        .pointingHandCursor()
     }
 }

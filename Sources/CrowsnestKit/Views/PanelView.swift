@@ -93,6 +93,7 @@ private struct HeaderSummary: View {
 }
 
 private struct PanelMenu: View {
+    @State private var isHovered = false
 
     var body: some View {
         Menu {
@@ -112,8 +113,10 @@ private struct PanelMenu: View {
         .menuIndicator(.hidden)
         .fixedSize()
         .foregroundStyle(.secondary)
+        // 메뉴 라벨 안에 깐 배경은 안 그려져서 바깥에 깔아 옆 버튼들과 같은 호버 모양을 냄
+        .background(.quaternary.opacity(isHovered ? 1 : 0), in: RoundedRectangle(cornerRadius: 6, style: .continuous))
+        .onHover { isHovered = $0 }
         .help("더 보기")
-        .pointingHandCursor()
     }
 }
 
@@ -136,7 +139,6 @@ private struct EmptyState: View {
                 .controlSize(.regular)
                 .buttonStyle(.borderedProminent)
                 .tint(.crowsnestAccent)
-                .pointingHandCursor()
                 .padding(.top, 4)
         }
         .frame(maxWidth: .infinity)

@@ -224,18 +224,10 @@ struct ToolbarIconButton: View {
         .disabled(isBusy)
         .help(help)
         .onHover { isHovered = $0 }
-        .pointingHandCursor()
     }
 }
 
 extension View {
-    /// 누를 수 있는 곳 — push · pop 은 호버 중에 뷰가 사라지면 짝이 안 맞아서 set 으로 바꿔 끼움
-    func pointingHandCursor() -> some View {
-        onHover { isInside in
-            (isInside ? NSCursor.pointingHand : NSCursor.arrow).set()
-        }
-    }
-
     /// 리스트 행 호버 배경
     func rowHoverBackground(_ isHovered: Bool) -> some View {
         background(.quaternary.opacity(isHovered ? 0.6 : 0), in: RoundedRectangle(cornerRadius: 8, style: .continuous))

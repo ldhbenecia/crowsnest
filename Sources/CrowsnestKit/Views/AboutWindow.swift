@@ -110,7 +110,6 @@ private struct AboutView: View {
                 Button("릴리스 노트") { NSWorkspace.shared.open(BuildInfo.releasesURL) }
             }
             .controlSize(.large)
-            .pointingHandCursor()
             .padding(.top, 20)
 
             Text("© 2026 ldhbenecia · MIT License")

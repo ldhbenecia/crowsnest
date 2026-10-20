@@ -33,7 +33,6 @@ struct PipelineRow: View {
         .contentShape(Rectangle())
         .onTapGesture { withAnimation(.snappy(duration: 0.25)) { isExpanded.toggle() } }
         .onHover { isHovered = $0 }
-        .pointingHandCursor()
     }
 
     private var titleLine: some View {
