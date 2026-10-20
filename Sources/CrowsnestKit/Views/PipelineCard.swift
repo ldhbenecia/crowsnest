@@ -88,7 +88,7 @@ private struct StageProgressBar: View {
         HStack(spacing: 3) {
             ForEach(stages) { stage in
                 // 지난 실행 결과는 실행 안 된 것처럼 회색으로
-                StageSegment(status: stage.isFromLatestExecution ? stage.status : nil)
+                StageSegment(status: stage.isCurrent ? stage.status : nil)
             }
         }
         .frame(height: 5)
@@ -136,7 +136,7 @@ private struct StageRow: View {
             HStack(spacing: 6) {
                 Text(stage.status.emoji)
                 Text(stage.name)
-                if !stage.isFromLatestExecution && stage.status != nil {
+                if !stage.isCurrent && stage.status != nil {
                     Text("이전 실행")
                         .font(.caption2)
                         .foregroundStyle(.tertiary)
@@ -144,7 +144,7 @@ private struct StageRow: View {
                 Spacer()
             }
             .font(.callout)
-            .opacity(stage.isFromLatestExecution ? 1 : 0.55)
+            .opacity(stage.isCurrent ? 1 : 0.55)
             .togglesDisclosure($isExpanded)
         }
         .onChange(of: stage.status) {
@@ -154,7 +154,7 @@ private struct StageRow: View {
 
     /// 진행 중이거나 실패한 스테이지는 액션까지 펼쳐서 보여줌
     private static func needsAttention(_ stage: StageSnapshot) -> Bool {
-        stage.isFromLatestExecution && (stage.status == .inProgress || stage.status == .failed)
+        stage.isCurrent && (stage.status == .inProgress || stage.status == .failed)
     }
 }
 

@@ -6,7 +6,7 @@ private func snapshot(_ name: String, execution: PipelineStatus?, stages: [Pipel
         ref: PipelineRef(profile: "sample", region: "ap-northeast-1", name: name),
         execution: execution.map { ExecutionSummary(id: "exec", status: $0, startedAt: nil, updatedAt: nil, revision: nil) },
         stages: stages.enumerated().map { index, status in
-            StageSnapshot(name: "Stage\(index + 1)", status: status, isFromLatestExecution: true, actions: [])
+            StageSnapshot(name: "Stage\(index + 1)", status: status, belongsToLatestExecution: true, actions: [])
         },
         failureReason: failureReason
     )
@@ -31,7 +31,7 @@ struct MenuBarTitleTests {
         let long = PipelineSnapshot(
             ref: PipelineRef(profile: "sample", region: "ap-northeast-1", name: "sample-service-admin-console-production"),
             execution: ExecutionSummary(id: "exec", status: .inProgress, startedAt: nil, updatedAt: nil, revision: nil),
-            stages: [StageSnapshot(name: "IntegrationTestsAndSmoke", status: .inProgress, isFromLatestExecution: true, actions: [])],
+            stages: [StageSnapshot(name: "IntegrationTestsAndSmoke", status: .inProgress, belongsToLatestExecution: true, actions: [])],
             failureReason: nil
         )
 

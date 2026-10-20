@@ -97,7 +97,7 @@ extension PipelineSnapshot {
             StageSnapshot(
                 name: stage.stageName,
                 status: stage.latestExecution?.status,
-                isFromLatestExecution: execution == nil || stage.latestExecution?.pipelineExecutionId == execution?.id,
+                belongsToLatestExecution: execution == nil || stage.latestExecution?.pipelineExecutionId == execution?.id,
                 actions: (stage.actionStates ?? []).map { action in
                     let summary = action.latestExecution?.summary
                     return ActionSnapshot(

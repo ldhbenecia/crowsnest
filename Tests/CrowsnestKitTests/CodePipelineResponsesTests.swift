@@ -69,6 +69,11 @@ private let stateJSON = #"""
         {
             "stageName": "Approve",
             "actionStates": [ { "actionName": "Manual" } ]
+        },
+        {
+            "stageName": "Release",
+            "actionStates": [ { "actionName": "Release", "latestExecution": { "status": "InProgress" } } ],
+            "latestExecution": { "pipelineExecutionId": "exec-1", "status": "InProgress" }
         }
     ]
 }
@@ -99,7 +104,7 @@ struct CodePipelineResponsesTests {
 
         #expect(snapshot.execution?.id == "exec-2")
         #expect(snapshot.execution?.status == .inProgress)
-        #expect(snapshot.stages.map(\.name) == ["Source", "Build", "Deploy", "Approve"])
+        #expect(snapshot.stages.map(\.name) == ["Source", "Build", "Deploy", "Approve", "Release"])
         #expect(snapshot.runningStage?.position == 2)
         #expect(snapshot.runningStage?.stage.name == "Build")
     }
@@ -111,10 +116,10 @@ struct CodePipelineResponsesTests {
         #expect(revision.message == "deploy: 알림 수정")
     }
 
-    @Test func 지난_실행이_남은_스테이지를_구분한다() throws {
+    @Test func 끝난_지난_실행이_남은_스테이지를_구분한다() throws {
         let stages = try makeSnapshot().stages
 
-        #expect(stages.map(\.isFromLatestExecution) == [true, true, false, false])
+        #expect(stages.map(\.isCurrent) == [true, true, false, false, true])
         #expect(stages[3].status == nil)
     }
 

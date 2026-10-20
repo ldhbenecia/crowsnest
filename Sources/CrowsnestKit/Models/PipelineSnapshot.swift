@@ -44,11 +44,14 @@ struct ActionSnapshot: Identifiable, Sendable, Equatable {
 struct StageSnapshot: Identifiable, Sendable, Equatable {
     let name: String
     let status: PipelineStatus?
-    /// false 면 지난 실행 결과가 남아 있는 것 — 콘솔은 구분 없이 보여줘서 헷갈림
-    let isFromLatestExecution: Bool
+    let belongsToLatestExecution: Bool
     let actions: [ActionSnapshot]
 
     var id: String { name }
+
+    /// false 면 끝난 지난 실행 결과가 남아 있는 것 — 콘솔은 구분 없이 보여줘서 헷갈림
+    /// PARALLEL 모드나 SUPERSEDED 대기 중엔 예전 실행이 아직 돌고 있을 수 있어서 진행 중이면 현재로 봄
+    var isCurrent: Bool { belongsToLatestExecution || status == .inProgress }
 }
 
 struct PipelineSnapshot: Sendable, Equatable {
