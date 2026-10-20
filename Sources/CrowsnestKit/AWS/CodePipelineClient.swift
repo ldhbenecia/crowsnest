@@ -73,14 +73,6 @@ struct CodePipelineClient: Sendable {
     }
 }
 
-enum AWSRegion {
-    /// ap-northeast-2 · us-gov-west-1 같은 모양만 — 호스트 이름에 들어가서 점 · 슬래시가 섞이면 안 됨
-    static func isValid(_ region: String) -> Bool {
-        // \d 는 다른 문자 체계의 숫자도 받아서 ASCII 숫자로 좁힘
-        region.wholeMatch(of: /[a-z]{2}(-[a-z]+)+-[0-9]+/) != nil
-    }
-}
-
 /// {"__type": "com.amazonaws.codepipeline#PipelineNotFoundException", "message": "..."}
 private struct ServiceFailure: Decodable {
     let type: String?

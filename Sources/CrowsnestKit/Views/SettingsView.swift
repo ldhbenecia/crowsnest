@@ -30,6 +30,8 @@ enum SettingsWindow {
             .fixedSize(horizontal: false, vertical: maximumHeight == nil)
         let controller = NSHostingController(rootView: sized)
         controller.sizingOptions = .preferredContentSize
+        // 탭 컨트롤러가 이 이름을 창 제목으로 올림 — 없으면 Untitled 로 뜸
+        controller.title = label
         let item = NSTabViewItem(viewController: controller)
         item.label = label
         item.image = NSImage(systemSymbolName: symbol, accessibilityDescription: label)
@@ -155,20 +157,7 @@ struct AWSSettings: View {
     var body: some View {
         Form {
             Section {
-                LabeledContent("사용 중") {
-                    Text(store.awsCLIPath ?? "못 찾음")
-                        .foregroundStyle(store.awsCLIPath == nil ? .orange : .secondary)
-                        .textSelection(.enabled)
-                }
-                CommittingTextField(
-                    title: "직접 지정",
-                    placeholder: "비워두면 brew · 기본 경로에서 찾음",
-                    value: store.configuration.awsCLIPath ?? "",
-                    isValid: { $0.isEmpty || FileManager.default.isExecutableFile(atPath: $0) },
-                    invalidMessage: "실행할 수 있는 파일이 아님"
-                ) { path in
-                    store.updateConfiguration { $0.awsCLIPath = path.isEmpty ? nil : path }
-                }
+                AWSCLIPathRow(store: store)
             } header: {
                 Text("aws CLI")
             } footer: {
@@ -177,14 +166,8 @@ struct AWSSettings: View {
             }
 
             Section {
-                CommittingTextField(
-                    title: "기본 리전",
-                    placeholder: "ap-northeast-2",
-                    value: store.configuration.defaultRegion,
-                    isValid: AWSRegion.isValid,
-                    invalidMessage: "리전 형식이 아님 (예: ap-northeast-2)"
-                ) { region in
-                    store.updateConfiguration { $0.defaultRegion = region }
+                Picker("기본 리전", selection: setting(store, \.defaultRegion)) {
+                    RegionOptions(current: store.configuration.defaultRegion)
                 }
             } footer: {
                 Text("aws configure 에 region 이 없는 프로필(SSO 전용 등)에 씀")
@@ -238,16 +221,18 @@ private struct ProfileSettings: View {
                     }
                     .toggleStyle(.checkbox)
                     Spacer()
-                    CommittingTextField(
-                        title: nil,
-                        placeholder: catalog.region,
-                        value: store.configuration.regionOverrides[catalog.profile] ?? "",
-                        isValid: { $0.isEmpty || AWSRegion.isValid($0) },
-                        invalidMessage: "리전 형식이 아님"
-                    ) { region in
-                        store.updateConfiguration { $0.regionOverrides[catalog.profile] = region.isEmpty ? nil : region }
+                    Picker("리전", selection: Binding(
+                        get: { store.configuration.regionOverrides[catalog.profile] },
+                        set: { region in store.updateConfiguration { $0.regionOverrides[catalog.profile] = region } }
+                    )) {
+                        // 덮어쓰지 않았을 때 catalog.region 은 aws configure 에서 읽은 값
+                        let configured = store.configuration.regionOverrides[catalog.profile] == nil ? " (\(catalog.region))" : ""
+                        Text("aws configure 따름\(configured)").tag(String?.none)
+                        Divider()
+                        RegionOptions(current: store.configuration.regionOverrides[catalog.profile], asOptional: true)
                     }
-                    .frame(width: 150)
+                    .labelsHidden()
+                    .fixedSize()
                 }
             }
         } header: {
@@ -262,55 +247,83 @@ private struct ProfileSettings: View {
                 )
             }
         } footer: {
-            Text("체크를 끄면 그 프로필의 파이프라인이 패널 · 선택 목록에서 빠지고 조회도 안 함(다시 켜면 돌아옴). 리전을 비워두면 aws configure 값을 씀")
+            Text("체크를 끄면 그 프로필의 파이프라인이 패널 · 선택 목록에서 빠지고 조회도 안 함(다시 켜면 돌아옴)")
                 .foregroundStyle(.secondary)
         }
         .onAppear(perform: store.loadCatalogsIfNeeded)
     }
 }
 
-/// 글자마다 저장하면 연결을 매번 다시 만들어서 Enter 나 다른 곳을 누를 때만 반영
-private struct CommittingTextField: View {
-    let title: String?
-    let placeholder: String
-    let value: String
-    let isValid: (String) -> Bool
-    let invalidMessage: String
-    let commit: (String) -> Void
+/// 쓰는 aws 경로 — 직접 칠 일 없이 Finder 에서 고르고, 자동으로 찾기로 되돌림
+private struct AWSCLIPathRow: View {
+    let store: PipelineStore
+    @State private var pickError: String?
 
-    @State private var text = ""
-    @FocusState private var isFocused: Bool
-
-    private var trimmed: String { text.trimmingCharacters(in: .whitespaces) }
+    private var isCustom: Bool { store.configuration.awsCLIPath != nil }
 
     var body: some View {
-        VStack(alignment: .trailing, spacing: 3) {
-            TextField(title ?? "", text: $text, prompt: Text(placeholder))
-                .labelsHidden(title == nil)
-                .focused($isFocused)
-                .onSubmit(save)
-                .onChange(of: isFocused) { if !isFocused { save() } }
-            if !isValid(trimmed) {
-                Text(invalidMessage)
-                    .font(.caption)
-                    .foregroundStyle(.orange)
+        LabeledContent {
+            HStack(spacing: 8) {
+                VStack(alignment: .trailing, spacing: 1) {
+                    Text(store.awsCLIPath ?? "못 찾음")
+                        .foregroundStyle(store.awsCLIPath == nil ? .orange : .primary)
+                        .lineLimit(1)
+                        .truncationMode(.head)
+                    Text(isCustom ? "직접 고른 경로" : "brew · 기본 경로에서 자동으로 찾음")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                Button("변경…", action: choose)
+                if isCustom {
+                    Button("자동으로") { store.updateConfiguration { $0.awsCLIPath = nil } }
+                }
+            }
+        } label: {
+            Text("실행 파일")
+            if let pickError {
+                Text(pickError)
             }
         }
-        .onAppear { text = value }
-        .onChange(of: value) { if !isFocused { text = value } }
-        // 입력하다 창을 닫거나 탭을 바꾸면 포커스 변화가 안 와서 여기서도 저장
-        .onDisappear(perform: save)
     }
 
-    private func save() {
-        guard isValid(trimmed), trimmed != value else { return }
-        commit(trimmed)
+    private func choose() {
+        let panel = NSOpenPanel()
+        panel.message = "aws 실행 파일을 고르셈 (터미널에서 which aws 로 확인)"
+        panel.canChooseFiles = true
+        panel.canChooseDirectories = false
+        panel.allowsMultipleSelection = false
+        // /opt/homebrew/bin 같은 숨김 경로도 보여야 고를 수 있음
+        panel.showsHiddenFiles = true
+        panel.directoryURL = URL(fileURLWithPath: store.awsCLIPath.map { ($0 as NSString).deletingLastPathComponent } ?? "/usr/local/bin")
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        let path = url.path(percentEncoded: false)
+        guard FileManager.default.isExecutableFile(atPath: path) else {
+            pickError = "실행할 수 있는 파일이 아님"
+            return
+        }
+        pickError = nil
+        store.updateConfiguration { $0.awsCLIPath = path }
     }
 }
 
-private extension View {
-    @ViewBuilder
-    func labelsHidden(_ isHidden: Bool) -> some View {
-        if isHidden { labelsHidden() } else { self }
+/// 리전 목록 — 설정 파일에 목록에 없는 리전을 적어뒀어도 선택지에 보이게
+private struct RegionOptions: View {
+    let current: String?
+    var asOptional = false
+
+    private var codes: [String] {
+        let known = AWSRegion.known.map(\.code)
+        guard let current, !known.contains(current) else { return known }
+        return [current] + known
+    }
+
+    var body: some View {
+        ForEach(codes, id: \.self) { code in
+            if asOptional {
+                Text(AWSRegion.label(code)).tag(String?.some(code))
+            } else {
+                Text(AWSRegion.label(code)).tag(code)
+            }
+        }
     }
 }
