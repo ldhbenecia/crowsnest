@@ -3,7 +3,9 @@ import SwiftUI
 public struct CrowsnestMenuBar: Scene {
     private let store = PipelineStore.shared
 
-    public init() {}
+    public init() {
+        StatusItemMenu.install()
+    }
 
     public var body: some Scene {
         // 언어를 읽어둬야 바꿨을 때 이 body 가 다시 돌아서 앱 메뉴 · 메뉴바 설명이 새 언어로 바뀜
