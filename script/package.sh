@@ -24,7 +24,7 @@ ln -s /Applications "$STAGING/Applications"
 rm -f "$DMG"
 hdiutil create -volname "$APP_NAME $VERSION" -srcfolder "$STAGING" -fs APFS -format UDZO -ov "$DMG" >/dev/null
 
-# 받은 사람이 shasum -c 로 확인할 수 있게 파일 이름만 적음 · Homebrew cask 에도 이 값을 씀
+# 받은 사람이 shasum -c 로 확인할 수 있게 파일 이름만 적음
 (cd "$(dirname "$DMG")" && shasum -a 256 "$(basename "$DMG")" >"$(basename "$DMG").sha256")
 
 echo "만듦: $DMG"
