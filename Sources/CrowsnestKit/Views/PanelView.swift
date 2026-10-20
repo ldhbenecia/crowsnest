@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct PanelView: View {
-    let store: PipelineStore
+    @Bindable var store: PipelineStore
     @State private var isPickerExpanded = false
 
     var body: some View {
@@ -50,18 +50,7 @@ struct PanelView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
-            Button {
-                Task { await store.refresh() }
-            } label: {
-                if store.isRefreshing {
-                    ProgressView().controlSize(.small)
-                } else {
-                    Image(systemName: "arrow.clockwise")
-                }
-            }
-            .buttonStyle(.borderless)
-            .disabled(store.isRefreshing)
-            .help("새로고침")
+            RefreshButton(isBusy: store.isRefreshing, help: "새로고침", action: store.requestRefresh)
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 10)
@@ -69,10 +58,7 @@ struct PanelView: View {
 
     private var footer: some View {
         HStack(spacing: 12) {
-            Toggle("완료 알림", isOn: Binding(
-                get: { store.notificationsEnabled },
-                set: { store.setNotificationsEnabled($0) }
-            ))
+            Toggle("완료 알림", isOn: $store.notificationsEnabled)
             .toggleStyle(.switch)
             .controlSize(.mini)
             Spacer()

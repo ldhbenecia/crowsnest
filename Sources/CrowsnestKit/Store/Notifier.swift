@@ -1,28 +1,22 @@
 import AppKit
 import UserNotifications
 
-/// 서명된 .app 으로 떴을 때만 UNUserNotificationCenter 를 씀 — 번들 없이 띄우면 그 자리에서 크래시남
+/// .app 으로 떴으면 UNUserNotificationCenter — 번들 없이 `swift run` 으로 띄우면 그 자리에서 크래시나서 osascript 로 대신함
 @MainActor
 final class Notifier: NSObject {
-    private var usesUserNotifications: Bool
+    private let isBundled = Bundle.main.bundleIdentifier != nil
 
     override init() {
-        usesUserNotifications = Bundle.main.bundleURL.pathExtension == "app"
         super.init()
-        guard usesUserNotifications else { return }
-
+        guard isBundled else { return }
         let center = UNUserNotificationCenter.current()
         center.delegate = self
-        Task {
-            let granted = (try? await UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound])) ?? false
-            if !granted {
-                usesUserNotifications = false
-            }
-        }
+        center.requestAuthorization(options: [.alert, .sound]) { _, _ in }
     }
 
+    /// 권한을 거부했으면 시스템이 안 띄움 — 사용자 선택이라 우회하지 않음
     func post(title: String, body: String, link: URL) {
-        guard usesUserNotifications else {
+        guard isBundled else {
             postWithAppleScript(title: title, body: body)
             return
         }
@@ -36,19 +30,17 @@ final class Notifier: NSObject {
         )
     }
 
-    /// 알림 권한을 거부했거나 번들 없이 띄웠을 때 — SwiftBar 스크립트와 같은 방식
+    /// 문자열을 스크립트에 끼워 넣지 않고 인자로 넘겨서 이스케이프가 필요 없음
     private func postWithAppleScript(title: String, body: String) {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
-        process.arguments = ["-e", "display notification \(Self.quoted(body)) with title \(Self.quoted(title)) sound name \"Glass\""]
+        process.arguments = [
+            "-e", "on run argv",
+            "-e", "display notification (item 2 of argv) with title (item 1 of argv) sound name \"Glass\"",
+            "-e", "end run",
+            title, body,
+        ]
         try? process.run()
-    }
-
-    private static func quoted(_ text: String) -> String {
-        let escaped = text
-            .replacingOccurrences(of: "\\", with: "\\\\")
-            .replacingOccurrences(of: "\"", with: "\\\"")
-        return "\"\(escaped)\""
     }
 }
 

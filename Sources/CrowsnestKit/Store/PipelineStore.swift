@@ -2,7 +2,7 @@ import Foundation
 import Observation
 import os
 
-private let logger = Logger(subsystem: "com.ldhbenecia.crowsnest", category: "store")
+private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "com.ldhbenecia.crowsnest", category: "store")
 
 @MainActor
 @Observable
@@ -16,7 +16,10 @@ final class PipelineStore {
     private(set) var isLoadingCatalogs = false
     private(set) var isRefreshing = false
     private(set) var lastRefreshedAt: Date?
-    private(set) var notificationsEnabled: Bool
+    private(set) var hasLoadedCatalogs = false
+    var notificationsEnabled: Bool {
+        didSet { Preferences.notificationsMuted = !notificationsEnabled }
+    }
     /// 설정 파일 · aws CLI 문제처럼 패널 맨 위에 띄울 것
     let notices: [String]
 
@@ -24,7 +27,10 @@ final class PipelineStore {
     @ObservationIgnored private let service: CodePipelineService?
     @ObservationIgnored private let notifier: Notifier
     @ObservationIgnored private var previousStatuses: [PipelineRef: PipelineStatus] = [:]
-    @ObservationIgnored private var pollingTask: Task<Void, Never>?
+    /// 이걸 취소하면 폴링 루프가 기다리지 않고 바로 다음 갱신으로 넘어감
+    @ObservationIgnored private var pendingSleep: Task<Void, Never>?
+    /// 갱신 도중에 들어온 요청 — 끝나자마자 한 번 더 돌게
+    @ObservationIgnored private var isRefreshRequested = false
 
     private init() {
         let loaded = AppConfiguration.load()
@@ -40,6 +46,7 @@ final class PipelineStore {
         selection = Preferences.selection
         notificationsEnabled = !Preferences.notificationsMuted
         notifier = Notifier()
+        startPolling()
     }
 
     var orderedSnapshots: [PipelineSnapshot] {
@@ -50,27 +57,77 @@ final class PipelineStore {
         MenuBarTitle.make(for: orderedSnapshots)
     }
 
-    /// Scene 이 여러 번 만들어져도 폴링은 하나만 돌게
-    func start() {
-        guard pollingTask == nil else { return }
-        pollingTask = Task { [weak self] in
-            while !Task.isCancelled {
-                guard let self else { return }
-                await self.refresh()
-                try? await Task.sleep(for: self.pollInterval)
-            }
-        }
-        Task { await reloadCatalogs() }
+    /// 버튼 · 선택 변경 — 폴링 대기를 깨워서 바로 갱신
+    func requestRefresh() {
+        isRefreshRequested = true
+        pendingSleep?.cancel()
     }
 
-    func refresh() async {
-        guard let service, !isRefreshing else { return }
+    /// 패널을 열 때 — 방금 갱신했으면 안 깨움
+    func refreshIfStale() {
+        let isFresh = lastRefreshedAt.map { Date.now.timeIntervalSince($0) < 5 } ?? false
+        if !isFresh {
+            requestRefresh()
+        }
+    }
+
+    /// 프로필이 많으면 aws 프로세스를 여러 개 띄워야 해서 선택 UI 를 처음 펼칠 때까지 미룸
+    func loadCatalogsIfNeeded() {
+        guard !hasLoadedCatalogs else { return }
+        reloadCatalogs()
+    }
+
+    func reloadCatalogs() {
+        guard let service, !isLoadingCatalogs else { return }
+        hasLoadedCatalogs = true
+        isLoadingCatalogs = true
+        Task {
+            do {
+                catalogs = try await service.loadCatalogs()
+                catalogError = nil
+            } catch {
+                catalogError = error.localizedDescription
+                logger.error("프로필 목록 조회 실패 · \(error.localizedDescription, privacy: .public)")
+            }
+            isLoadingCatalogs = false
+        }
+    }
+
+    func toggle(_ ref: PipelineRef) {
+        if let index = selection.firstIndex(of: ref) {
+            selection.remove(at: index)
+            snapshots[ref] = nil
+            previousStatuses[ref] = nil
+        } else {
+            selection.append(ref)
+            requestRefresh()
+        }
+        Preferences.selection = selection
+    }
+
+    /// 갱신은 이 루프에서만 함 — 다른 곳은 requestRefresh 로 대기만 깨움
+    private func startPolling() {
+        Task {
+            while true {
+                isRefreshRequested = false
+                await refresh()
+                guard !isRefreshRequested else { continue }
+                let sleep = Task { [interval = pollInterval] in _ = try? await Task.sleep(for: interval) }
+                pendingSleep = sleep
+                await sleep.value
+            }
+        }
+    }
+
+    private func refresh() async {
+        guard let service else { return }
         let targets = selection
         isRefreshing = true
         let fresh = await withTaskGroup(of: PipelineSnapshot.self) { group in
             for ref in targets {
                 group.addTask { await service.snapshot(of: ref) }
             }
+            // MainActor 안이라 group.reduce 는 Swift 6 동시성 검사에 걸림
             var collected: [PipelineSnapshot] = []
             for await snapshot in group {
                 collected.append(snapshot)
@@ -82,50 +139,6 @@ final class PipelineStore {
         lastRefreshedAt = .now
     }
 
-    /// 패널을 열 때 — 방금 갱신했으면 다시 안 부름
-    func refreshIfStale() {
-        let isFresh = lastRefreshedAt.map { Date.now.timeIntervalSince($0) < 5 } ?? false
-        if !isFresh {
-            Task { await refresh() }
-        }
-    }
-
-    func reloadCatalogs() async {
-        guard let service, !isLoadingCatalogs else { return }
-        isLoadingCatalogs = true
-        do {
-            catalogs = try await service.loadCatalogs()
-            catalogError = nil
-        } catch {
-            catalogError = error.localizedDescription
-            logger.error("프로필 목록 조회 실패 · \(error.localizedDescription, privacy: .public)")
-        }
-        isLoadingCatalogs = false
-    }
-
-    func toggle(_ ref: PipelineRef) {
-        if let index = selection.firstIndex(of: ref) {
-            selection.remove(at: index)
-            snapshots[ref] = nil
-            previousStatuses[ref] = nil
-        } else {
-            selection.append(ref)
-            Task { await fetch(ref) }
-        }
-        Preferences.selection = selection
-    }
-
-    func setNotificationsEnabled(_ isEnabled: Bool) {
-        notificationsEnabled = isEnabled
-        Preferences.notificationsMuted = !isEnabled
-    }
-
-    /// 새로 고른 파이프라인은 다음 주기까지 안 기다리고 바로 받아옴
-    private func fetch(_ ref: PipelineRef) async {
-        guard let service else { return }
-        apply([await service.snapshot(of: ref)])
-    }
-
     /// 조회하는 사이에 선택 해제된 건 버림
     private func apply(_ fresh: [PipelineSnapshot]) {
         for snapshot in fresh where selection.contains(snapshot.ref) {
@@ -133,7 +146,9 @@ final class PipelineStore {
                 logger.error("\(snapshot.ref.id, privacy: .public) 조회 실패 · \(reason, privacy: .public)")
             }
             notifyIfFinished(snapshot)
-            snapshots[snapshot.ref] = snapshot
+            if snapshots[snapshot.ref] != snapshot {
+                snapshots[snapshot.ref] = snapshot
+            }
         }
     }
 
@@ -151,7 +166,12 @@ final class PipelineStore {
     }
 
     private var pollInterval: Duration {
-        let isAnyRunning = snapshots.values.contains { $0.execution?.status == .inProgress }
+        let current = Array(snapshots.values)
+        // 인증 만료 · 오프라인이면 전부 같은 이유로 실패하니 천천히 — 새로고침 버튼으로 바로 다시 볼 수 있음
+        if !current.isEmpty && current.allSatisfy({ $0.failureReason != nil }) {
+            return .seconds(300)
+        }
+        let isAnyRunning = current.contains { $0.execution?.status == .inProgress }
         let seconds = isAnyRunning ? configuration.activePollIntervalSeconds : configuration.pollIntervalSeconds
         return .seconds(max(5, seconds))
     }

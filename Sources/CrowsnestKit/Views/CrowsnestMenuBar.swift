@@ -3,9 +3,7 @@ import SwiftUI
 public struct CrowsnestMenuBar: Scene {
     private let store = PipelineStore.shared
 
-    public init() {
-        PipelineStore.shared.start()
-    }
+    public init() {}
 
     public var body: some Scene {
         MenuBarExtra {

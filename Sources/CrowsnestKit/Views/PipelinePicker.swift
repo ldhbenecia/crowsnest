@@ -11,23 +11,16 @@ struct PipelinePicker: View {
                 HStack(spacing: 6) {
                     TextField("파이프라인 검색", text: $query)
                         .textFieldStyle(.roundedBorder)
-                    Button {
-                        Task { await store.reloadCatalogs() }
-                    } label: {
-                        if store.isLoadingCatalogs {
-                            ProgressView().controlSize(.small)
-                        } else {
-                            Image(systemName: "arrow.clockwise")
-                        }
-                    }
-                    .buttonStyle(.borderless)
-                    .disabled(store.isLoadingCatalogs)
-                    .help("프로필 · 파이프라인 목록 다시 불러오기")
+                    RefreshButton(
+                        isBusy: store.isLoadingCatalogs,
+                        help: "프로필 · 파이프라인 목록 다시 불러오기",
+                        action: store.reloadCatalogs
+                    )
                 }
                 if let catalogError = store.catalogError {
                     NoticeView(message: catalogError)
                 }
-                if store.catalogs.isEmpty && !store.isLoadingCatalogs && store.catalogError == nil {
+                if store.hasLoadedCatalogs && store.catalogs.isEmpty && !store.isLoadingCatalogs && store.catalogError == nil {
                     Text("aws configure 에 등록된 프로필이 없음")
                         .font(.caption)
                         .foregroundStyle(.secondary)
@@ -45,9 +38,10 @@ struct PipelinePicker: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
-            .contentShape(Rectangle())
-            .onTapGesture { withAnimation(.snappy) { isExpanded.toggle() } }
+            .togglesDisclosure($isExpanded)
         }
+        .onAppear { if isExpanded { store.loadCatalogsIfNeeded() } }
+        .onChange(of: isExpanded) { if isExpanded { store.loadCatalogsIfNeeded() } }
     }
 }
 
