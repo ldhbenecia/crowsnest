@@ -90,8 +90,17 @@ struct ScreenshotTests {
             window.setContentSize(hostingView.fittingSize)
             hostingView.layoutSubtreeIfNeeded()
         }
-        let bitmap = try #require(hostingView.bitmapImageRepForCachingDisplay(in: hostingView.bounds))
-        hostingView.cacheDisplay(in: hostingView.bounds, to: bitmap)
+        // 화면 배율(2x)보다 촘촘하게 3x 로 — GitHub 가 크기를 맞추며 줄여도 글자가 안 뭉개지게
+        let scale: CGFloat = 3
+        let bounds = hostingView.bounds
+        let bitmap = try #require(NSBitmapImageRep(
+            bitmapDataPlanes: nil,
+            pixelsWide: Int(bounds.width * scale), pixelsHigh: Int(bounds.height * scale),
+            bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false,
+            colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0
+        ))
+        bitmap.size = bounds.size
+        hostingView.cacheDisplay(in: bounds, to: bitmap)
         window.orderOut(nil)
         let data = try #require(bitmap.representation(using: .png, properties: [:]))
         try data.write(to: directory.appending(path: "\(name).png"))

@@ -9,7 +9,7 @@
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: light)" srcset="docs/images/panel-light.png">
-    <img src="docs/images/panel-dark.png" width="440" alt="Crowsnest panel showing a running build, a pending approval, a failed build, a rejected approval and a successful deployment">
+    <img src="docs/images/panel-dark.png" width="456" alt="Crowsnest panel showing a running build, a pending approval, a failed build, a rejected approval and a successful deployment">
   </picture>
 </p>
 
@@ -24,7 +24,7 @@
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: light)" srcset="docs/images/menubar-light.png">
-    <img src="docs/images/menubar-dark.png" width="440" alt="Menu bar states: running, waiting for approval, needs attention, idle">
+    <img src="docs/images/menubar-dark.png" width="452" alt="Menu bar states: running, waiting for approval, needs attention, idle">
   </picture>
 </p>
 
@@ -74,7 +74,7 @@ cd crowsnest
 3. Click a row to expand every stage and action. Hover a row to reveal a button that opens it in the AWS console.
 
 <p align="center">
-  <img src="docs/images/picker.png" width="320" alt="Pipeline picker grouped by AWS profile">
+  <img src="docs/images/picker.png" width="336" alt="Pipeline picker grouped by AWS profile">
 </p>
 
 The interface is available in English and Korean (한국어). It follows your macOS language by default and can be changed in **Settings → General → Language**.
@@ -84,8 +84,11 @@ The interface is available in English and Korean (한국어). It follows your ma
 Open **Settings** from the `···` menu in the panel header, or press ⌘, while the panel is open. Changes apply immediately.
 
 <p align="center">
-  <img src="docs/images/settings-general.png" width="400" alt="General settings: launch at login and refresh intervals">
-  <img src="docs/images/settings-aws.png" width="400" alt="AWS settings: aws CLI path, default region and per-profile visibility and region">
+  <img src="docs/images/settings-general.png" width="556" alt="General settings: language, open at login and refresh intervals">
+</p>
+
+<p align="center">
+  <img src="docs/images/settings-aws.png" width="556" alt="AWS settings: aws CLI path, default region and per-profile visibility and region">
 </p>
 
 - **General** — language, open at login, refresh interval while idle and while a deployment runs, slow down in Low Power Mode.
