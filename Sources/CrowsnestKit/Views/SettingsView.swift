@@ -15,8 +15,9 @@ enum SettingsWindow {
         tabs.addTabViewItem(tab({ L("알림", "Notifications") }, symbol: "bell", LanguageScope(store: store) { NotificationSettings(store: store) }))
         // 프로필이 많으면 끝없이 길어져서 이 탭만 높이를 묶고 안에서 스크롤
         tabs.addTabViewItem(tab({ "AWS" }, symbol: "cloud", maximumHeight: 560, LanguageScope(store: store) { AWSSettings(store: store) }))
-        relabel()
-        observeLanguage(from: store.configuration.language)
+        // 만드는 중인 tabs 를 직접 넘김 — relabel 이 static tabs 를 다시 읽으면 아직 초기화 중이라 앱이 죽음
+        relabel(tabs)
+        observeLanguage(of: tabs, from: store.configuration.language)
         return tabs
     }()
 
@@ -30,19 +31,19 @@ enum SettingsWindow {
     }
 
     /// 탭 이름은 AppKit 쪽이라 언어가 바뀌면 직접 다시 붙임 — 다른 설정이 바뀔 때도 불리니 언어가 실제로 바뀐 때만
-    private static func observeLanguage(from language: AppLanguage) {
+    private static func observeLanguage(of tabs: NSTabViewController, from language: AppLanguage) {
         withObservationTracking {
             _ = PipelineStore.shared.configuration
         } onChange: {
             DispatchQueue.main.async {
                 let current = PipelineStore.shared.configuration.language
-                if current != language { relabel() }
-                observeLanguage(from: current)
+                if current != language { relabel(tabs) }
+                observeLanguage(of: tabs, from: current)
             }
         }
     }
 
-    private static func relabel() {
+    private static func relabel(_ tabs: NSTabViewController) {
         for (item, label) in labels {
             item.label = label()
             item.viewController?.title = label()

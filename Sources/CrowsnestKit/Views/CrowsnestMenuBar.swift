@@ -5,6 +5,10 @@ public struct CrowsnestMenuBar: Scene {
 
     public init() {
         StatusItemMenu.install()
+        // 개발 확인용 — open Crowsnest.app --args --open-settings 로 띄우면 설정 창부터 엶
+        if ProcessInfo.processInfo.arguments.contains("--open-settings") {
+            DispatchQueue.main.async { SettingsWindow.show() }
+        }
     }
 
     public var body: some Scene {
