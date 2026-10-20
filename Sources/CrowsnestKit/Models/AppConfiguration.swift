@@ -30,12 +30,14 @@ struct AppConfiguration: Codable, Sendable, Equatable {
 
     /// 파일이 없으면 기본값으로 만들어 둠 — 어떤 키가 있는지 열어보면 바로 보이게
     static func load(from url: URL = fileURL) -> (configuration: AppConfiguration, error: String?) {
-        guard let data = try? Data(contentsOf: url) else {
+        guard FileManager.default.fileExists(atPath: url.path(percentEncoded: false)) else {
             let configuration = AppConfiguration()
             try? configuration.write(to: url)
             return (configuration, nil)
         }
+        // 있는데 못 읽는 파일은 덮어쓰지 않음
         do {
+            let data = try Data(contentsOf: url)
             return (try JSONDecoder().decode(AppConfiguration.self, from: data), nil)
         } catch {
             return (AppConfiguration(), "config.json 을 못 읽어서 기본값으로 실행 중 · \(error.localizedDescription)")
