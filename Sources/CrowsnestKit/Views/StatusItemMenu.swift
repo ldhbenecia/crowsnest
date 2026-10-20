@@ -14,10 +14,32 @@ enum StatusItemMenu {
             guard isContextClick,
                   let window = event.window,
                   String(describing: type(of: window)).contains("NSStatusBarWindow"),
-                  let view = window.contentView else { return event }
-            NSMenu.popUpContextMenu(makeMenu(), with: event, for: view)
+                  let contentView = window.contentView,
+                  let button = statusButton(in: contentView) else { return event }
+            showMenu(window: window, button: button)
             return nil
         }
+    }
+
+    /// 상태 항목에 메뉴를 잠깐 붙이고 누르면 시스템이 다른 메뉴바 앱과 똑같이 눌림 표시 · 아이콘 아래 위치로 띄워줌
+    /// 버튼에 직접 highlight 를 걸면 SwiftUI 가 쥔 버튼이라 안 그려짐
+    private static func showMenu(window: NSWindow, button: NSButton) {
+        // statusItem 은 공개 API 가 아니라서 없을 때를 대비해 확인하고 꺼냄
+        guard window.responds(to: NSSelectorFromString("statusItem")),
+              let statusItem = window.value(forKey: "statusItem") as? NSStatusItem else {
+            makeMenu().popUp(positioning: nil, at: NSPoint(x: 0, y: button.bounds.maxY + 6), in: button)
+            return
+        }
+        statusItem.menu = makeMenu()
+        // 메뉴가 닫힐 때까지 돌아오지 않음 — 그다음 메뉴를 떼야 왼쪽 클릭이 다시 패널을 엶
+        button.performClick(nil)
+        statusItem.menu = nil
+    }
+
+    /// 상태 막대 창 안에서 아이콘을 그리는 버튼(NSStatusBarButton)
+    private static func statusButton(in view: NSView) -> NSButton? {
+        if let button = view as? NSButton { return button }
+        return view.subviews.lazy.compactMap(statusButton(in:)).first
     }
 
     /// 언어를 바꿀 수 있어서 누를 때마다 새로 만듦
