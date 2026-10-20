@@ -34,6 +34,8 @@ final class AppWindow: NSObject, NSWindowDelegate {
         DispatchQueue.main.async { [window] in
             NSApp.activate()
             window.makeKeyAndOrderFront(nil)
+            // macOS 14 부터는 활성화 요청을 시스템이 무시할 수 있어서(메뉴바 패널에서 열 때 특히) 다른 앱 창 뒤에 뜸 — 창을 직접 맨 앞으로
+            window.orderFrontRegardless()
         }
     }
 
