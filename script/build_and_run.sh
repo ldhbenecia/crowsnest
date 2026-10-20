@@ -22,12 +22,20 @@ cd "$ROOT_DIR"
 swift build -c "$CONFIGURATION" --product "$APP_NAME"
 BUILD_BINARY="$(swift build -c "$CONFIGURATION" --show-bin-path)/$APP_NAME"
 
+# 정보 창에 보여줄 값 — 커밋 안 된 변경이 있으면 해시 뒤에 표시
+COMMIT="$(git -C "$ROOT_DIR" rev-parse --short HEAD 2>/dev/null || echo unknown)"
+if ! git -C "$ROOT_DIR" diff --quiet HEAD 2>/dev/null; then
+  COMMIT="$COMMIT-dirty"
+fi
+BUILD_DATE="$(date '+%Y-%m-%d')"
+
 # 빌드가 성공한 뒤에만 끔 — 실패하면 돌던 앱이 그대로 남음
 pkill -x "$APP_NAME" >/dev/null 2>&1 || true
 
 rm -rf "$APP_BUNDLE"
-mkdir -p "$APP_BUNDLE/Contents/MacOS"
+mkdir -p "$APP_BUNDLE/Contents/MacOS" "$APP_BUNDLE/Contents/Resources"
 cp "$BUILD_BINARY" "$APP_BUNDLE/Contents/MacOS/$APP_NAME"
+cp "$ROOT_DIR/Resources/AppIcon.icns" "$APP_BUNDLE/Contents/Resources/AppIcon.icns"
 
 cat >"$APP_BUNDLE/Contents/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
@@ -36,10 +44,13 @@ cat >"$APP_BUNDLE/Contents/Info.plist" <<PLIST
 <dict>
   <key>CFBundleExecutable</key><string>$APP_NAME</string>
   <key>CFBundleIdentifier</key><string>$BUNDLE_ID</string>
+  <key>CFBundleIconFile</key><string>AppIcon</string>
   <key>CFBundleName</key><string>$APP_NAME</string>
   <key>CFBundlePackageType</key><string>APPL</string>
   <key>CFBundleShortVersionString</key><string>$VERSION</string>
   <key>CFBundleVersion</key><string>$VERSION</string>
+  <key>CrowsnestCommit</key><string>$COMMIT</string>
+  <key>CrowsnestBuildDate</key><string>$BUILD_DATE</string>
   <key>LSMinimumSystemVersion</key><string>$MIN_SYSTEM_VERSION</string>
   <key>LSUIElement</key><true/>
   <key>NSPrincipalClass</key><string>NSApplication</string>

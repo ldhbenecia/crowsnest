@@ -102,6 +102,7 @@ private struct PanelMenu: View {
             Button("설정 파일 열기") { NSWorkspace.shared.open(AppConfiguration.fileURL) }
             Text("바꾸면 앱을 다시 켜야 반영됨")
             Divider()
+            Button("Crowsnest 정보") { AboutWindow.show() }
             Button("Crowsnest 종료") { NSApplication.shared.terminate(nil) }
                 .keyboardShortcut("q")
         } label: {
