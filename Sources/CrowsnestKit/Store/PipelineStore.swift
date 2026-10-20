@@ -26,7 +26,7 @@ final class PipelineStore {
     @ObservationIgnored private let configuration: AppConfiguration
     @ObservationIgnored private let service: CodePipelineService?
     @ObservationIgnored private let notifier: Notifier
-    @ObservationIgnored private var previousStatuses: [PipelineRef: PipelineStatus] = [:]
+    @ObservationIgnored private var previousConditions: [PipelineRef: PipelineCondition] = [:]
     /// 이걸 취소하면 폴링 루프가 기다리지 않고 바로 다음 갱신으로 넘어감
     @ObservationIgnored private var pendingSleep: Task<Void, Never>?
     /// 갱신 도중에 들어온 요청 — 끝나자마자 한 번 더 돌게
@@ -97,7 +97,7 @@ final class PipelineStore {
         if let index = selection.firstIndex(of: ref) {
             selection.remove(at: index)
             snapshots[ref] = nil
-            previousStatuses[ref] = nil
+            previousConditions[ref] = nil
         } else {
             selection.append(ref)
             requestRefresh()
@@ -145,24 +145,21 @@ final class PipelineStore {
             if let reason = snapshot.failureReason {
                 logger.error("\(snapshot.ref.id, privacy: .public) 조회 실패 · \(reason, privacy: .public)")
             }
-            notifyIfFinished(snapshot)
+            notifyIfChanged(snapshot)
             if snapshots[snapshot.ref] != snapshot {
                 snapshots[snapshot.ref] = snapshot
             }
         }
     }
 
-    /// 진행 중이던 실행이 끝났을 때만 알림 — 앱을 켠 직후 첫 조회에선 안 울림
-    private func notifyIfFinished(_ snapshot: PipelineSnapshot) {
-        guard let status = snapshot.execution?.status else { return }
-        let previous = previousStatuses.updateValue(status, forKey: snapshot.ref)
-        guard notificationsEnabled, previous == .inProgress, status != .inProgress else { return }
-        logger.info("\(snapshot.ref.id, privacy: .public) 실행 종료 · \(status.label, privacy: .public)")
-        notifier.post(
-            title: "\(status.emoji) \(snapshot.ref.name)",
-            body: "배포 \(status.label) · \(snapshot.ref.profile)",
-            link: snapshot.ref.consoleURL
-        )
+    private func notifyIfChanged(_ snapshot: PipelineSnapshot) {
+        let condition = snapshot.condition
+        // 조회 실패는 상태를 모르는 것 — 직전 상태를 남겨둬야 인증이 풀린 뒤 끝난 실행도 알림
+        if case .unavailable = condition { return }
+        let previous = previousConditions.updateValue(condition, forKey: snapshot.ref)
+        guard notificationsEnabled, let notification = DeployNotification.make(previous: previous, snapshot: snapshot) else { return }
+        logger.info("\(snapshot.ref.id, privacy: .public) \(condition.label, privacy: .public)")
+        notifier.post(title: notification.title, body: notification.body, link: snapshot.ref.consoleURL)
     }
 
     private var pollInterval: Duration {
@@ -171,7 +168,7 @@ final class PipelineStore {
         if !current.isEmpty && current.allSatisfy({ $0.failureReason != nil }) {
             return .seconds(300)
         }
-        let isAnyRunning = current.contains { $0.execution?.status == .inProgress }
+        let isAnyRunning = current.contains { $0.condition.isActive }
         let seconds = isAnyRunning ? configuration.activePollIntervalSeconds : configuration.pollIntervalSeconds
         return .seconds(max(5, seconds))
     }

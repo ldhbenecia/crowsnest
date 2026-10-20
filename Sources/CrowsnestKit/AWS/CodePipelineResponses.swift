@@ -49,6 +49,8 @@ struct GetPipelineStateResponse: Decodable, Sendable {
             let summary: String?
             let errorDetails: ErrorDetails?
             let externalExecutionUrl: String?
+            let lastUpdatedBy: String?
+            let token: String?
         }
 
         let actionName: String
@@ -99,18 +101,33 @@ extension PipelineSnapshot {
                 status: stage.latestExecution?.status,
                 belongsToLatestExecution: execution == nil || stage.latestExecution?.pipelineExecutionId == execution?.id,
                 actions: (stage.actionStates ?? []).map { action in
-                    let summary = action.latestExecution?.summary
+                    let latest = action.latestExecution
+                    let summary = Self.droppingApprovalBoilerplate(latest?.summary)
                     return ActionSnapshot(
                         name: action.actionName,
-                        status: action.latestExecution?.status,
+                        status: latest?.status,
                         summary: SourceRevision.codeStarCommitMessage(summary) ?? summary,
-                        errorMessage: action.latestExecution?.errorDetails?.message,
-                        externalURL: action.latestExecution?.externalExecutionUrl.flatMap(Self.webURL)
+                        errorMessage: latest?.errorDetails?.message,
+                        externalURL: latest?.externalExecutionUrl.flatMap(Self.webURL),
+                        // 실제 응답에선 수동 승인 액션에만 lastUpdatedBy 가 붙음
+                        decidedBy: latest?.lastUpdatedBy.map(Self.principalName),
+                        isAwaitingApproval: latest?.status == .inProgress && latest?.token != nil
                     )
                 }
             )
         }
         self.init(ref: ref, execution: execution, stages: stages, failureReason: nil)
+    }
+
+    /// 코멘트 없이 승인 · 반려하면 요약이 "Approved by <ARN>" 이라 버림
+    private static func droppingApprovalBoilerplate(_ summary: String?) -> String? {
+        guard let summary, !summary.hasPrefix("Approved by "), !summary.hasPrefix("Rejected by ") else { return nil }
+        return summary
+    }
+
+    /// assumed-role ARN 은 끝이 세션 이름(보통 SSO 사용자), IAM 사용자 ARN 은 끝이 사용자 이름
+    static func principalName(_ arn: String) -> String {
+        arn.split(separator: "/").last.map(String.init) ?? arn
     }
 
     /// 커스텀 액션은 아무 URL 이나 넣을 수 있어서 다른 앱을 띄우는 스킴은 버림

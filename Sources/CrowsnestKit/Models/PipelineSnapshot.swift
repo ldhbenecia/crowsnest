@@ -37,8 +37,15 @@ struct ActionSnapshot: Identifiable, Sendable, Equatable {
     let summary: String?
     let errorMessage: String?
     let externalURL: URL?
+    /// 수동 승인을 누른 사람 — 승인 액션에만 붙음
+    let decidedBy: String?
+    /// 승인 대기 중인 수동 승인 액션에만 토큰이 붙음
+    let isAwaitingApproval: Bool
 
     var id: String { name }
+
+    /// 사람이 반려한 건 실패가 아니라 일부러 멈춘 것 — 빌드 실패처럼 에러가 붙은 건 반려가 아님
+    var isRejected: Bool { status == .failed && decidedBy != nil && errorMessage == nil }
 }
 
 struct StageSnapshot: Identifiable, Sendable, Equatable {
@@ -52,6 +59,48 @@ struct StageSnapshot: Identifiable, Sendable, Equatable {
     /// false 면 끝난 지난 실행 결과가 남아 있는 것 — 콘솔은 구분 없이 보여줘서 헷갈림
     /// PARALLEL 모드나 SUPERSEDED 대기 중엔 예전 실행이 아직 돌고 있을 수 있어서 진행 중이면 현재로 봄
     var isCurrent: Bool { belongsToLatestExecution || status == .inProgress }
+
+    /// 승인 말고 돌고 있는 액션이 없을 때만 — 승인이랑 빌드가 같이 돌면 진행 중으로 봄
+    var isAwaitingApproval: Bool {
+        let running = actions.filter { $0.status == .inProgress }
+        return !running.isEmpty && running.allSatisfy(\.isAwaitingApproval)
+    }
+}
+
+struct StageProgress: Sendable, Equatable {
+    /// 1부터
+    let position: Int
+    let count: Int
+    let stage: StageSnapshot
+}
+
+/// 화면 · 알림이 보는 파이프라인 상태 — 실행 상태만으론 승인 대기와 반려를 구분 못 함
+enum PipelineCondition: Sendable, Equatable {
+    case unavailable(reason: String)
+    case neverRun
+    /// 스테이지 사이를 넘어가는 순간엔 돌고 있는 스테이지가 없음
+    case running(StageProgress?)
+    case awaitingApproval(StageProgress)
+    case rejected(by: String?)
+    case finished(PipelineStatus)
+
+    var isActive: Bool {
+        switch self {
+        case .running, .awaitingApproval: true
+        case .unavailable, .neverRun, .rejected, .finished: false
+        }
+    }
+
+    var label: String {
+        switch self {
+        case .unavailable: "조회 실패"
+        case .neverRun: "실행 기록 없음"
+        case .running: "진행 중"
+        case .awaitingApproval: "승인 대기"
+        case .rejected: "반려됨"
+        case .finished(let status): status.label
+        }
+    }
 }
 
 struct PipelineSnapshot: Sendable, Equatable {
@@ -65,9 +114,28 @@ struct PipelineSnapshot: Sendable, Equatable {
         PipelineSnapshot(ref: ref, execution: nil, stages: [], failureReason: reason)
     }
 
-    /// 지금 돌고 있는 스테이지와 몇 번째인지 (1부터)
-    var runningStage: (position: Int, stage: StageSnapshot)? {
+    var runningStage: StageProgress? {
         guard let index = stages.firstIndex(where: { $0.status == .inProgress }) else { return nil }
-        return (index + 1, stages[index])
+        return StageProgress(position: index + 1, count: stages.count, stage: stages[index])
+    }
+
+    var condition: PipelineCondition {
+        if let failureReason { return .unavailable(reason: failureReason) }
+        if let progress = runningStage {
+            return progress.stage.isAwaitingApproval ? .awaitingApproval(progress) : .running(progress)
+        }
+        guard let execution else { return .neverRun }
+        switch execution.status {
+        case .inProgress:
+            return .running(nil)
+        case .failed:
+            let failedActions = stages.filter(\.isCurrent).flatMap(\.actions).filter { $0.status == .failed }
+            if let first = failedActions.first, failedActions.allSatisfy(\.isRejected) {
+                return .rejected(by: first.decidedBy)
+            }
+            return .finished(.failed)
+        default:
+            return .finished(execution.status)
+        }
     }
 }
