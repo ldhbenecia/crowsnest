@@ -77,24 +77,37 @@ cd crowsnest
   <img src="docs/images/picker.png" width="320" alt="Pipeline picker grouped by AWS profile">
 </p>
 
-Notifications can be turned off from the `···` menu in the panel header (**배포 알림**).
-
 > The interface is currently in Korean.
 
-## Configuration
+## Settings
 
-`~/.config/crowsnest/config.json` is created with defaults on first launch. Restart the app after editing it (`···` → **설정 파일 열기** opens it).
+Open **Settings** from the `···` menu in the panel header, or press ⌘, while the panel is open. Changes apply immediately.
+
+<p align="center">
+  <img src="docs/images/settings-general.png" width="400" alt="General settings: launch at login and refresh intervals">
+  <img src="docs/images/settings-aws.png" width="400" alt="AWS settings: aws CLI path, default region and per-profile visibility and region">
+</p>
+
+- **일반 (General)** — launch at login, refresh interval while idle and while a deployment runs, slow down in Low Power Mode.
+- **알림 (Notifications)** — turn notifications on or off per event (finished, failed or stopped, approval needed, rejected) and toggle the sound.
+- **AWS** — the `aws` executable in use, default region, and for every profile whether to show it and which region to use.
+
+Everything is stored in `~/.config/crowsnest/config.json`, so you can also keep it in your dotfiles. Edits made to the file directly are picked up on the next launch.
 
 | Key | Default | Description |
 | --- | --- | --- |
 | `defaultRegion` | `"ap-northeast-1"` | Region for profiles that have none in `aws configure` (e.g. SSO-only profiles). |
-| `regionOverrides` | `{}` | Region per profile, e.g. `{"staging": "us-west-2"}`. |
-| `hiddenProfiles` | `[]` | Profiles to leave out of the picker. |
+| `regionOverrides` | `{}` | Region per profile, e.g. `{"staging": "us-west-2"}`. Pipelines you already picked follow the new region. |
+| `hiddenProfiles` | `[]` | Profiles to leave out. Their pipelines disappear from the panel and are not polled until shown again. |
 | `awsCLIPath` | — | Path to the `aws` executable. When empty, `/opt/homebrew/bin`, `/usr/local/bin` and `/usr/bin` are searched. |
 | `pollIntervalSeconds` | `30` | Refresh interval when nothing is running. |
 | `activePollIntervalSeconds` | `10` | Refresh interval while a deployment is running. |
+| `slowDownInLowPowerMode` | `true` | Double both intervals in Low Power Mode. |
+| `notificationsEnabled` | `true` | Master switch for notifications. |
+| `notifyOnSuccess` · `notifyOnFailure` · `notifyOnApprovalRequest` · `notifyOnRejection` | `true` | Per-event notifications. |
+| `notificationSound` | `true` | Play a sound with notifications. |
 
-Intervals double in Low Power Mode. If every pipeline fails to load (offline, expired session), Crowsnest retries every 5 minutes until you press refresh.
+If every pipeline fails to load (offline, expired session), Crowsnest retries every 5 minutes until you press refresh.
 
 ## Troubleshooting
 
@@ -102,10 +115,10 @@ Intervals double in Low Power Mode. If every pipeline fails to load (offline, ex
 Run the suggested `aws sso login` command, then press refresh (↻) in the panel. Without refresh it retries within 5 minutes.
 
 **"aws CLI 를 못 찾음"** (aws CLI not found)
-Install it with `brew install awscli`, or set `awsCLIPath` in `config.json` to the output of `which aws` and restart.
+Install it with `brew install awscli`, or enter the output of `which aws` in **Settings → AWS**.
 
 **A profile shows no pipelines**
-Usually the region is wrong. Check `aws configure get region --profile <profile>` and set `regionOverrides` if needed.
+Usually the region is wrong. Check `aws configure get region --profile <profile>` and set the profile's region in **Settings → AWS** if needed.
 
 **The menu bar icon is missing**
 On Macs with a notch, menu bar items that do not fit are hidden. Remove some items, or ⌘-drag icons to reorder them.
