@@ -27,6 +27,23 @@ struct MenuBarTitleTests {
         #expect(title == "🔵 web-prod: Stage2 2/3 ⋯+1")
     }
 
+    @Test func 긴_이름은_구분되는_끝을_살려서_자른다() {
+        let long = PipelineSnapshot(
+            ref: PipelineRef(profile: "sample", region: "ap-northeast-1", name: "sample-service-admin-console-production"),
+            execution: ExecutionSummary(id: "exec", status: .inProgress, startedAt: nil, updatedAt: nil, revision: nil),
+            stages: [StageSnapshot(name: "IntegrationTestsAndSmoke", status: .inProgress, isFromLatestExecution: true, actions: [])],
+            failureReason: nil
+        )
+
+        #expect(MenuBarTitle.make(for: [long]) == "🔵 sample-servi…-production: Integration… 1/1")
+    }
+
+    @Test func 한도_안이면_그대로_둔다() {
+        #expect("web-prod".truncated(to: 8, keepingTail: 3) == "web-prod")
+        #expect("Deploy".truncated(to: 6) == "Deploy")
+        #expect("abcdefghi".truncated(to: 8, keepingTail: 3) == "abcd…ghi")
+    }
+
     @Test func 쉬는_중이면_실패를_성공보다_먼저_알린다() {
         let title = MenuBarTitle.make(for: [
             snapshot("web-prod", execution: .succeeded),
