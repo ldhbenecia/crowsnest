@@ -1,6 +1,6 @@
 # Crowsnest
 
-AWS CodePipeline 배포 상태를 보여주는 macOS 메뉴바 앱. Swift 6 · SwiftUI `MenuBarExtra(.window)` · macOS 14+ · SwiftPM (Xcode 프로젝트 없음)
+AWS CodePipeline 배포 상태를 보여주는 macOS 메뉴바 앱. Swift 6 · SwiftUI + AppKit `NSStatusItem` · 패널 창 · macOS 14+ · SwiftPM (Xcode 프로젝트 없음)
 
 ## 명령
 
