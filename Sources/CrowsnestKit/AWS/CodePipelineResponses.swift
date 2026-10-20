@@ -75,12 +75,10 @@ struct AWSTimestamp: Decodable, Sendable, Equatable {
         date = parsed
     }
 
-    /// 소수점 6자리(마이크로초)는 ISO8601DateFormatter 가 못 읽어서 초 단위로 잘라냄
+    /// CLI 는 소수점 6자리(마이크로초)까지 붙여서 주고, 설정에 따라 소수점이 없을 때도 있음
     static func parse(_ text: String) -> Date? {
-        let withoutFraction = text.replacingOccurrences(of: #"\.\d+"#, with: "", options: .regularExpression)
-        let formatter = ISO8601DateFormatter()
-        formatter.formatOptions = [.withInternetDateTime]
-        return formatter.date(from: withoutFraction)
+        (try? Date(text, strategy: Date.ISO8601FormatStyle(includingFractionalSeconds: true)))
+            ?? (try? Date(text, strategy: .iso8601))
     }
 }
 
@@ -101,17 +99,24 @@ extension PipelineSnapshot {
                 status: stage.latestExecution?.status,
                 isFromLatestExecution: execution == nil || stage.latestExecution?.pipelineExecutionId == execution?.id,
                 actions: (stage.actionStates ?? []).map { action in
-                    ActionSnapshot(
+                    let summary = action.latestExecution?.summary
+                    return ActionSnapshot(
                         name: action.actionName,
                         status: action.latestExecution?.status,
-                        summary: SourceRevision.commitMessage(from: action.latestExecution?.summary),
+                        summary: SourceRevision.codeStarCommitMessage(summary) ?? summary,
                         errorMessage: action.latestExecution?.errorDetails?.message,
-                        externalURL: action.latestExecution?.externalExecutionUrl.flatMap(URL.init(string:))
+                        externalURL: action.latestExecution?.externalExecutionUrl.flatMap(Self.webURL)
                     )
                 }
             )
         }
         self.init(ref: ref, execution: execution, stages: stages, failureReason: nil)
+    }
+
+    /// 커스텀 액션은 아무 URL 이나 넣을 수 있어서 다른 앱을 띄우는 스킴은 버림
+    static func webURL(_ text: String) -> URL? {
+        guard let url = URL(string: text), ["https", "http"].contains(url.scheme?.lowercased()) else { return nil }
+        return url
     }
 }
 
@@ -121,15 +126,15 @@ extension SourceRevision {
         shortId = wire.revisionId.map { revisionId in
             String((revisionId.split(separator: ":").last ?? Substring(revisionId)).prefix(7))
         }
-        message = Self.commitMessage(from: wire.revisionSummary)
+        message = Self.codeStarCommitMessage(wire.revisionSummary) ?? wire.revisionSummary?.nonEmptyLines.first
     }
 
-    /// GitHub(CodeStar 연결) 소스는 요약 자리에 {"ProviderType":..,"CommitMessage":..} JSON 을 넣어줌
-    static func commitMessage(from summary: String?) -> String? {
-        guard let summary, !summary.isEmpty else { return nil }
-        let codeStar = try? JSONDecoder().decode(CodeStarRevisionSummary.self, from: Data(summary.utf8))
-        let message = codeStar?.commitMessage ?? summary
-        return message.split(whereSeparator: \.isNewline).first.map { $0.trimmingCharacters(in: .whitespaces) }
+    /// GitHub(CodeStar 연결) 소스는 요약 자리에 {"ProviderType":..,"CommitMessage":..} JSON 을 넣어줌 — 다른 소스면 nil
+    static func codeStarCommitMessage(_ summary: String?) -> String? {
+        guard let summary, let decoded = try? JSONDecoder().decode(CodeStarRevisionSummary.self, from: Data(summary.utf8)) else {
+            return nil
+        }
+        return decoded.commitMessage.nonEmptyLines.first
     }
 }
 

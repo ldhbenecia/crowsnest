@@ -76,6 +76,14 @@ private let stateJSON = #"""
 
 private let ref = PipelineRef(profile: "sample", region: "ap-northeast-1", name: "sample-api-test")
 
+private func utcDate(_ year: Int, _ month: Int, _ day: Int, _ hour: Int, _ minute: Int, _ second: Int) -> Date? {
+    DateComponents(
+        calendar: Calendar(identifier: .gregorian),
+        timeZone: TimeZone(identifier: "UTC"),
+        year: year, month: month, day: day, hour: hour, minute: minute, second: second
+    ).date
+}
+
 private func makeSnapshot() throws -> PipelineSnapshot {
     let decoder = JSONDecoder()
     return PipelineSnapshot(
@@ -118,15 +126,23 @@ struct CodePipelineResponsesTests {
         #expect(actions[1].errorMessage == "Build terminated with state: FAILED")
     }
 
+    @Test func 로그_링크는_웹_주소만_받는다() {
+        #expect(PipelineSnapshot.webURL("https://example.com/build") != nil)
+        #expect(PipelineSnapshot.webURL("file:///Applications/Calculator.app") == nil)
+        #expect(PipelineSnapshot.webURL("x-apple.systempreferences:com.apple.preference") == nil)
+    }
+
     @Test func 마이크로초와_오프셋이_붙은_시각을_읽는다() throws {
         let date = try #require(AWSTimestamp.parse("2026-10-20T15:06:54.437000+09:00"))
-        let utc = DateComponents(
-            calendar: Calendar(identifier: .gregorian),
-            timeZone: TimeZone(identifier: "UTC"),
-            year: 2026, month: 10, day: 20, hour: 6, minute: 6, second: 54
-        )
+        let wholeSecond = try #require(utcDate(2026, 10, 20, 6, 6, 54))
 
-        #expect(date == utc.date)
+        #expect(abs(date.timeIntervalSince(wholeSecond) - 0.437) < 0.001)
+    }
+
+    @Test func 소수점이_없는_시각도_읽는다() throws {
+        let date = try #require(AWSTimestamp.parse("2026-10-20T06:06:54Z"))
+
+        #expect(date == utcDate(2026, 10, 20, 6, 6, 54))
     }
 
     @Test func 모르는_상태값은_원문을_보존한다() throws {
@@ -144,5 +160,22 @@ struct CodePipelineResponsesTests {
         )
 
         #expect(error.errorDescription == "인증 만료 · 터미널에서 aws sso login --profile sample")
+    }
+
+    @Test func 서비스_에러_코드를_문장보다_먼저_본다() {
+        let error = AWSCommandError(
+            profile: "sample",
+            status: 254,
+            errorOutput: "\nAn error occurred (AccessDeniedException) when calling the GetPipelineState operation: User is not authorized to perform: codepipeline:GetPipelineState\n"
+        )
+
+        #expect(error.kind == .accessDenied)
+    }
+
+    @Test func 모르는_에러는_마지막_줄을_그대로_보여준다() {
+        let error = AWSCommandError(profile: nil, status: 1, errorOutput: "first line\n  something broke  \n\n")
+
+        #expect(error.kind == .other)
+        #expect(error.errorDescription == "something broke")
     }
 }

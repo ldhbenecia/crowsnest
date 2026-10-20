@@ -4,14 +4,27 @@ import Foundation
 struct AWSCommandLine: Sendable {
     let executableURL: URL
 
+    /// 메뉴바 앱은 로그인 셸의 PATH 를 못 물려받아서 brew 경로를 직접 봄
+    private static let extraSearchPaths = ["/opt/homebrew/bin", "/usr/local/bin"]
+
+    private static let environment: [String: String] = {
+        var environment = ProcessInfo.processInfo.environment
+        let inheritedPath = environment["PATH"] ?? "/usr/bin:/bin:/usr/sbin:/sbin"
+        // credential_process 헬퍼도 brew 경로에 있을 수 있음
+        environment["PATH"] = (extraSearchPaths + [inheritedPath]).joined(separator: ":")
+        environment["AWS_PAGER"] = ""
+        return environment
+    }()
+
     static func locate(preferredPath: String?) -> AWSCommandLine? {
-        let candidates = [preferredPath, "/opt/homebrew/bin/aws", "/usr/local/bin/aws", "/usr/bin/aws"].compactMap { $0 }
+        let candidates = [preferredPath].compactMap { $0 } + (extraSearchPaths + ["/usr/bin"]).map { "\($0)/aws" }
         return candidates
             .first { FileManager.default.isExecutableFile(atPath: $0) }
             .map { AWSCommandLine(executableURL: URL(fileURLWithPath: $0)) }
     }
 
-    func run(_ arguments: [String]) async throws -> Data {
+    /// profile 은 실패했을 때 안내 문구에만 씀
+    func run(_ arguments: [String], profile: String? = nil) async throws -> Data {
         let process = Process()
         process.executableURL = executableURL
         process.arguments = arguments
@@ -31,7 +44,7 @@ struct AWSCommandLine: Sendable {
 
         guard process.terminationStatus == 0 else {
             throw AWSCommandError(
-                profile: arguments.firstIndex(of: "--profile").flatMap { arguments.indices.contains($0 + 1) ? arguments[$0 + 1] : nil },
+                profile: profile,
                 status: process.terminationStatus,
                 errorOutput: String(decoding: errorData, as: UTF8.self)
             )
@@ -47,42 +60,54 @@ struct AWSCommandLine: Sendable {
             }
         }
     }
-
-    /// 메뉴바 앱은 로그인 셸의 PATH 를 못 물려받음 — credential_process 헬퍼가 brew 경로에 있을 수 있음
-    private static var environment: [String: String] {
-        var environment = ProcessInfo.processInfo.environment
-        let inheritedPath = environment["PATH"] ?? "/usr/bin:/bin:/usr/sbin:/sbin"
-        environment["PATH"] = "/opt/homebrew/bin:/usr/local/bin:\(inheritedPath)"
-        environment["AWS_PAGER"] = ""
-        return environment
-    }
 }
 
 struct AWSCommandError: LocalizedError, Sendable {
+    enum Kind: Equatable, Sendable {
+        case expiredSession
+        case missingCredentials
+        case accessDenied
+        case pipelineNotFound
+        case other
+    }
+
     let profile: String?
     let status: Int32
     let errorOutput: String
 
-    var errorDescription: String? {
+    /// 서비스 에러는 "An error occurred (Code) when calling ..." 로 코드가 오고,
+    /// SSO · 자격 증명 에러는 CLI 가 요청 전에 내는 거라 문장으로만 옴
+    var kind: Kind {
+        switch serviceErrorCode {
+        case "ExpiredToken", "ExpiredTokenException": return .expiredSession
+        case "AccessDenied", "AccessDeniedException": return .accessDenied
+        case "PipelineNotFoundException": return .pipelineNotFound
+        case .some: return .other
+        case nil: break
+        }
         let lowered = errorOutput.lowercased()
+        if ["error loading sso token", "token has expired", "sso session associated with this profile has expired"]
+            .contains(where: { lowered.contains($0) }) {
+            return .expiredSession
+        }
+        if lowered.contains("unable to locate credentials") || (lowered.contains("config profile") && lowered.contains("could not be found")) {
+            return .missingCredentials
+        }
+        return .other
+    }
+
+    var errorDescription: String? {
         let profileOption = profile.map { " --profile \($0)" } ?? ""
-        let expiredMarkers = ["token has expired", "expiredtoken", "error loading sso token", "sso session", "refresh failed"]
-        if expiredMarkers.contains(where: { lowered.contains($0) }) {
-            return "인증 만료 · 터미널에서 aws sso login\(profileOption)"
+        switch kind {
+        case .expiredSession: return "인증 만료 · 터미널에서 aws sso login\(profileOption)"
+        case .missingCredentials: return "자격 증명 없음 · aws configure list\(profileOption) 로 확인"
+        case .accessDenied: return "권한 없음 (AccessDenied)"
+        case .pipelineNotFound: return "파이프라인이 없음 (이름 · 리전 확인)"
+        case .other: return errorOutput.nonEmptyLines.last ?? "aws 가 종료 코드 \(status) 로 끝남"
         }
-        if lowered.contains("unable to locate credentials") || lowered.contains("could not be found") {
-            return "자격 증명 없음 · aws configure list\(profileOption) 로 확인"
-        }
-        if lowered.contains("accessdenied") || lowered.contains("not authorized") {
-            return "권한 없음 (AccessDenied)"
-        }
-        if lowered.contains("pipelinenotfound") {
-            return "파이프라인이 없음 (이름 · 리전 확인)"
-        }
-        let lastLine = errorOutput
-            .split(whereSeparator: \.isNewline)
-            .map { $0.trimmingCharacters(in: .whitespaces) }
-            .last { !$0.isEmpty }
-        return lastLine ?? "aws 가 종료 코드 \(status) 로 끝남"
+    }
+
+    private var serviceErrorCode: String? {
+        errorOutput.firstMatch(of: /An error occurred \((\w+)\)/).map { String($0.1) }
     }
 }
