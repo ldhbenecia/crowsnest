@@ -8,23 +8,37 @@ enum StatusItemMenu {
 
     static func install() {
         guard monitor == nil else { return }
-        monitor = NSEvent.addLocalMonitorForEvents(matching: [.rightMouseDown, .leftMouseDown]) { event in
-            let isContextClick = event.type == .rightMouseDown || event.modifierFlags.contains(.control)
+        let events: NSEvent.EventTypeMask = [.rightMouseDown, .rightMouseUp, .leftMouseDown, .leftMouseUp]
+        monitor = NSEvent.addLocalMonitorForEvents(matching: events) { event in
             // 메뉴바 아이템을 그리는 창은 NSStatusBarWindow — 다른 창의 클릭은 그대로 흘려보냄
-            guard isContextClick,
-                  let window = event.window,
+            guard let window = event.window,
                   String(describing: type(of: window)).contains("NSStatusBarWindow"),
                   let contentView = window.contentView,
                   let button = statusButton(in: contentView) else { return event }
-            showMenu(window: window, button: button)
+            let isContextClick = event.type == .rightMouseDown || event.type == .rightMouseUp
+                || event.modifierFlags.contains(.control)
+            guard isContextClick else { return event }
+            if event.type == .rightMouseDown || event.type == .leftMouseDown {
+                showMenu(window: window, button: button)
+            }
+            // 떼는 이벤트가 SwiftUI 버튼에 닿으면 클릭으로 보고 패널을 열어서 같이 삼킴
             return nil
         }
     }
 
     /// 상태 항목이 직접 메뉴를 띄우면 시스템이 다른 메뉴바 앱과 똑같이 눌림 표시 · 아이콘 아래 위치로 그려줌
-    /// 버튼에 highlight 를 걸면 SwiftUI 가 쥔 버튼이라 안 그려지고, 메뉴를 붙이고 누르면 패널까지 같이 열려서 이 방법을 씀
+    /// 버튼에 highlight 를 걸면 SwiftUI 가 쥔 버튼이라 안 그려져서 이 방법을 씀
     private static func showMenu(window: NSWindow, button: NSButton) {
         let menu = makeMenu()
+        // 메뉴가 떠 있는 동안 버튼 동작을 떼어둬야 메뉴를 닫을 때 패널이 같이 열리지 않음
+        let action = button.action
+        let target = button.target
+        button.action = nil
+        button.target = nil
+        defer {
+            button.action = action
+            button.target = target
+        }
         // statusItem · popUpStatusItemMenu: 는 공개 API 가 아니거나 지원 중단이라 없을 때를 대비해 확인하고 부름
         let popUpSelector = NSSelectorFromString("popUpStatusItemMenu:")
         guard window.responds(to: NSSelectorFromString("statusItem")),
