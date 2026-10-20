@@ -8,7 +8,9 @@ AWS CodePipeline 배포 상태를 보여주는 macOS 메뉴바 앱. Swift 6 · S
 swift build                          # 빌드
 ./script/test.sh                     # 테스트 — Command Line Tools 만 있으면 swift test 대신 이걸 씀
 ./script/build_and_run.sh            # .app 조립 후 실행 (--logs: 로그 스트림, --verify: 실행 확인, --install: /Applications)
-./script/make_icon.sh                # Resources/AppIcon.icns 다시 그림
+./script/make_icon.sh                # Resources/AppIcon.icns · docs/images/icon.png 다시 그림
+./script/screenshots.sh              # README 스크린샷(docs/images)을 예시 데이터로 다시 그림 — UI 를 바꾸면 같이 돌림
+./script/package.sh                  # release dmg (VERSION 파일 기준)
 log stream --info --predicate 'subsystem == "com.ldhbenecia.crowsnest"'
 ```
 
