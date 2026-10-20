@@ -87,7 +87,8 @@ private struct StageProgressBar: View {
     var body: some View {
         HStack(spacing: 3) {
             ForEach(stages) { stage in
-                StageSegment(status: stage.status, isFromLatestExecution: stage.isFromLatestExecution)
+                // 지난 실행 결과는 실행 안 된 것처럼 회색으로
+                StageSegment(status: stage.isFromLatestExecution ? stage.status : nil)
             }
         }
         .frame(height: 5)
@@ -96,12 +97,11 @@ private struct StageProgressBar: View {
 
 private struct StageSegment: View {
     let status: PipelineStatus?
-    let isFromLatestExecution: Bool
     @State private var isDimmed = false
 
     var body: some View {
         Capsule()
-            .fill(isFromLatestExecution ? status.tint : Optional<PipelineStatus>.none.tint)
+            .fill(status.tint)
             .opacity(status == .inProgress && isDimmed ? 0.35 : 1)
             .onAppear(perform: updatePulse)
             .onChange(of: status) { updatePulse() }
@@ -145,8 +145,7 @@ private struct StageRow: View {
             }
             .font(.callout)
             .opacity(stage.isFromLatestExecution ? 1 : 0.55)
-            .contentShape(Rectangle())
-            .onTapGesture { withAnimation(.snappy) { isExpanded.toggle() } }
+            .togglesDisclosure($isExpanded)
         }
         .onChange(of: stage.status) {
             if Self.needsAttention(stage) { isExpanded = true }

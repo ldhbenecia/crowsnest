@@ -57,7 +57,11 @@ extension PipelineStatus: Decodable {
     }
 }
 
-extension Optional where Wrapped == PipelineStatus {
+extension PipelineStatus {
     /// 한 번도 실행된 적 없는 스테이지 · 액션은 상태가 없음
-    var emoji: String { self?.emoji ?? "⚪" }
+    static let neverRunEmoji = "⚪"
+}
+
+extension Optional where Wrapped == PipelineStatus {
+    var emoji: String { self?.emoji ?? PipelineStatus.neverRunEmoji }
 }

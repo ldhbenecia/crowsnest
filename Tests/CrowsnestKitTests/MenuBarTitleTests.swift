@@ -19,18 +19,18 @@ struct MenuBarTitleTests {
 
     @Test func 첫_진행_중_파이프라인과_나머지_개수를_보여준다() {
         let title = MenuBarTitle.make(for: [
-            snapshot("idle-api", execution: .succeeded, stages: [.succeeded]),
-            snapshot("api-prod", execution: .inProgress, stages: [.succeeded, .inProgress, nil]),
-            snapshot("cms-prod", execution: .inProgress, stages: [.inProgress, nil]),
+            snapshot("batch-prod", execution: .succeeded, stages: [.succeeded]),
+            snapshot("web-prod", execution: .inProgress, stages: [.succeeded, .inProgress, nil]),
+            snapshot("worker-prod", execution: .inProgress, stages: [.inProgress, nil]),
         ])
 
-        #expect(title == "🔵 api-prod: Stage2 2/3 ⋯+1")
+        #expect(title == "🔵 web-prod: Stage2 2/3 ⋯+1")
     }
 
     @Test func 쉬는_중이면_실패를_성공보다_먼저_알린다() {
         let title = MenuBarTitle.make(for: [
-            snapshot("api-prod", execution: .succeeded),
-            snapshot("cms-prod", execution: .failed),
+            snapshot("web-prod", execution: .succeeded),
+            snapshot("worker-prod", execution: .failed),
         ])
 
         #expect(title == "🔴")
@@ -38,8 +38,8 @@ struct MenuBarTitleTests {
 
     @Test func 조회_실패가_있으면_성공_대신_경고를_띄운다() {
         let title = MenuBarTitle.make(for: [
-            snapshot("api-prod", execution: .succeeded),
-            snapshot("cms-prod", execution: nil, failureReason: "인증 만료"),
+            snapshot("web-prod", execution: .succeeded),
+            snapshot("worker-prod", execution: nil, failureReason: "인증 만료"),
         ])
 
         #expect(title == "⚠️")

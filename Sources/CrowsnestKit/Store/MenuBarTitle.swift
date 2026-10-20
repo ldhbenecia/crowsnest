@@ -5,8 +5,8 @@ enum MenuBarTitle {
     static func make(for snapshots: [PipelineSnapshot]) -> String? {
         guard !snapshots.isEmpty else { return nil }
 
-        let running = snapshots.filter { $0.runningStage != nil }
-        if let first = running.first, let current = first.runningStage {
+        let running = snapshots.compactMap { snapshot in snapshot.runningStage.map { (snapshot, $0) } }
+        if let (first, current) = running.first {
             let emoji = first.execution?.status.emoji ?? PipelineStatus.inProgress.emoji
             var title = "\(emoji) \(first.ref.name): \(current.stage.name) \(current.position)/\(first.stages.count)"
             if running.count > 1 {
@@ -19,6 +19,6 @@ enum MenuBarTitle {
         if statuses.contains(.failed) { return PipelineStatus.failed.emoji }
         if snapshots.contains(where: { $0.failureReason != nil }) { return "⚠️" }
         if statuses.contains(.succeeded) { return PipelineStatus.succeeded.emoji }
-        return Optional<PipelineStatus>.none.emoji
+        return PipelineStatus.neverRunEmoji
     }
 }
