@@ -6,6 +6,8 @@
 
 <p align="center">Watch your AWS CodePipeline deployments from the macOS menu bar.</p>
 
+<p align="center"><b>English</b> · <a href="README.ko.md">한국어</a></p>
+
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: light)" srcset="docs/images/panel-light.png">
@@ -46,16 +48,26 @@
 
 ### From a release
 
-1. Download `Crowsnest-<version>.dmg` from [Releases](https://github.com/ldhbenecia/crowsnest/releases), open it and drag **Crowsnest** into **Applications**.
-2. The app is ad-hoc signed but not notarized (there is no Apple Developer account behind it), so macOS blocks the first launch once. Either
-   - open it, click **Done** on the warning, then go to **System Settings → Privacy & Security** and click **Open Anyway** (on macOS 15 and later right-click → Open no longer skips this), or
-   - remove the quarantine flag:
+1. Download `Crowsnest-<version>.dmg` from [Releases](https://github.com/ldhbenecia/crowsnest/releases), open it and drag **Crowsnest** onto **Applications**.
+2. Run this once in Terminal:
 
-     ```bash
-     xattr -dr com.apple.quarantine /Applications/Crowsnest.app
-     ```
+   ```bash
+   xattr -dr com.apple.quarantine /Applications/Crowsnest.app
+   ```
 
-   After the first launch it opens normally.
+3. Open **Crowsnest** from Applications. The anchor icon appears in the menu bar.
+
+#### Why the command?
+
+Crowsnest is ad-hoc signed but not notarized, because there is no paid Apple Developer account behind it. Without step 2, the first launch is blocked with this warning:
+
+<p align="center">
+  <img src="docs/images/gatekeeper-warning.png" width="372" alt="macOS warning: Apple could not verify Crowsnest.app is free of malware, with Move to Trash and Done buttons">
+</p>
+
+It means Apple has not scanned the app, not that anything was found. Click **Done** (not **Move to Trash**), run the command from step 2 and open the app again. Instead of the command you can also go to **System Settings → Privacy & Security** and click **Open Anyway** — on macOS 15 and later, right-click → Open no longer skips the warning.
+
+A newly downloaded version is blocked the same way, so repeat step 2 after each update.
 
 ### From source
 
@@ -142,7 +154,7 @@ log stream --info --predicate 'subsystem == "com.ldhbenecia.crowsnest"'
 swift build                    # build
 ./script/test.sh               # tests (passes swift-testing paths when only Command Line Tools are installed)
 ./script/build_and_run.sh      # assemble the .app and launch it (--logs, --verify, --install)
-./script/make_icon.sh          # redraw Resources/AppIcon.icns
+./script/make_icon.sh          # redraw the app icon and the DMG window background
 ./script/screenshots.sh        # regenerate the images in docs/images from sample data
 ```
 
