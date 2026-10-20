@@ -4,3 +4,4 @@
 dist/
 *.xcodeproj
 xcuserdata/
+.claude/settings.local.json

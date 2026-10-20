@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(swift build:*)",
+      "Bash(./script/test.sh:*)",
+      "Bash(./script/build_and_run.sh:*)",
+      "Bash(./script/make_icon.sh)",
+      "Bash(git status:*)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)",
+      "Bash(git grep:*)",
+      "Bash(log show:*)",
+      "Bash(/usr/bin/log show:*)"
+    ]
+  }
+}
