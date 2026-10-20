@@ -3,6 +3,8 @@ import SwiftUI
 struct PanelView: View {
     @Bindable var store: PipelineStore
     @State private var isPicking = false
+    /// 끌고 있는 행 — 다른 행 위로 지나갈 때마다 그 자리로 옮김
+    @State private var draggingRef: PipelineRef?
     @State private var isVisible = false
 
     var body: some View {
@@ -55,6 +57,20 @@ struct PanelView: View {
             }
             ForEach(store.visibleSelection) { ref in
                 PipelineRow(ref: ref, snapshot: store.snapshots[ref])
+                    .onDrag {
+                        draggingRef = ref
+                        return NSItemProvider(object: ref.id as NSString)
+                    }
+                    .onDrop(of: [.plainText], delegate: RowReorderDelegate(target: ref, store: store, draggingRef: $draggingRef))
+                    .contextMenu {
+                        Button(L("맨 위로", "Move to Top")) { withAnimation(.snappy) { store.moveToTop(ref) } }
+                            .disabled(store.visibleSelection.first == ref)
+                        Button(L("맨 아래로", "Move to Bottom")) { withAnimation(.snappy) { store.moveToBottom(ref) } }
+                            .disabled(store.visibleSelection.last == ref)
+                        Divider()
+                        Button(L("AWS 콘솔에서 열기", "Open in AWS Console")) { NSWorkspace.shared.open(ref.consoleURL) }
+                        Button(L("지켜보기 그만", "Stop Watching")) { withAnimation(.snappy) { store.toggle(ref) } }
+                    }
             }
         }
         .padding(6)
@@ -150,5 +166,26 @@ private struct EmptyState: View {
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 28)
+    }
+}
+
+/// 끌던 행이 다른 행 위로 들어오면 바로 그 자리로 옮겨서, 놓기 전에도 순서가 바뀌는 게 보이게
+private struct RowReorderDelegate: DropDelegate {
+    let target: PipelineRef
+    let store: PipelineStore
+    @Binding var draggingRef: PipelineRef?
+
+    func dropEntered(info: DropInfo) {
+        guard let draggingRef, draggingRef != target else { return }
+        withAnimation(.snappy) { store.move(draggingRef, to: target) }
+    }
+
+    func dropUpdated(info: DropInfo) -> DropProposal? {
+        DropProposal(operation: .move)
+    }
+
+    func performDrop(info: DropInfo) -> Bool {
+        draggingRef = nil
+        return true
     }
 }

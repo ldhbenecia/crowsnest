@@ -74,6 +74,15 @@ struct SettingsTests {
         #expect(configuration.language == .system)
     }
 
+    @Test func 끌어서_옮기면_대상_자리에_놓인다() {
+        let refs = ["a", "b", "c", "d"].map { PipelineRef(profile: "sample", region: "ap-northeast-2", name: $0) }
+        func names(_ selection: [PipelineRef]) -> [String] { selection.map(\.name) }
+
+        #expect(names(PipelineStore.selection(refs, moving: refs[3], to: refs[0])) == ["d", "a", "b", "c"])
+        #expect(names(PipelineStore.selection(refs, moving: refs[0], to: refs[2])) == ["b", "c", "a", "d"])
+        #expect(names(PipelineStore.selection(refs, moving: refs[1], to: refs[1])) == ["a", "b", "c", "d"])
+    }
+
     @Test func 리전_형식만_받는다() {
         #expect(AWSRegion.isValid("ap-northeast-2"))
         #expect(AWSRegion.isValid("us-gov-west-1"))

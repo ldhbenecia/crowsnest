@@ -240,6 +240,33 @@ final class PipelineStore {
         Preferences.selection = selection
     }
 
+    /// 패널에서 끌어 옮기기 · 맨 위로 — 순서는 메뉴바에 어느 파이프라인을 보여줄지도 정함
+    func move(_ ref: PipelineRef, to target: PipelineRef) {
+        let moved = Self.selection(selection, moving: ref, to: target)
+        guard moved != selection else { return }
+        selection = moved
+        Preferences.selection = selection
+    }
+
+    func moveToTop(_ ref: PipelineRef) {
+        guard let first = selection.first else { return }
+        move(ref, to: first)
+    }
+
+    func moveToBottom(_ ref: PipelineRef) {
+        guard let last = selection.last else { return }
+        move(ref, to: last)
+    }
+
+    /// ref 를 target 자리로 — 아래로 옮기면 target 뒤, 위로 옮기면 target 앞에 놓임
+    nonisolated static func selection(_ selection: [PipelineRef], moving ref: PipelineRef, to target: PipelineRef) -> [PipelineRef] {
+        guard ref != target, let from = selection.firstIndex(of: ref), let to = selection.firstIndex(of: target) else { return selection }
+        var moved = selection
+        moved.remove(at: from)
+        moved.insert(ref, at: to)
+        return moved
+    }
+
     /// 갱신은 이 루프에서만 함 — 다른 곳은 requestRefresh 로 대기만 깨움
     private func startPolling() {
         Task {
