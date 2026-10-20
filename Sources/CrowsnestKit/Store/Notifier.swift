@@ -11,7 +11,10 @@ final class Notifier: NSObject {
         guard isBundled else { return }
         let center = UNUserNotificationCenter.current()
         center.delegate = self
-        center.requestAuthorization(options: [.alert, .sound]) { _, _ in }
+        // 완료 클로저를 넘기면 MainActor 클로저로 잡혀서, 시스템이 백그라운드 큐에서 부르는 순간 격리 검사에 걸려 앱이 죽음
+        Task {
+            _ = try? await center.requestAuthorization(options: [.alert, .sound])
+        }
     }
 
     /// 권한을 거부했으면 시스템이 안 띄움 — 사용자 선택이라 우회하지 않음
