@@ -40,4 +40,4 @@ jobs:
             --generate-notes \
             --notes "SHA-256: \`$SHA256\`
 
-          Not notarized — on first launch right-click the app → Open, or run \`xattr -dr com.apple.quarantine /Applications/Crowsnest.app\`."
+          Not notarized — on first launch allow it in System Settings → Privacy & Security → Open Anyway, or run \`xattr -dr com.apple.quarantine /Applications/Crowsnest.app\`."

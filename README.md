@@ -47,13 +47,15 @@
 ### From a release
 
 1. Download `Crowsnest-<version>.dmg` from [Releases](https://github.com/ldhbenecia/crowsnest/releases), open it and drag **Crowsnest** into **Applications**.
-2. The app is not notarized (there is no Apple Developer account behind it), so macOS blocks the first launch. Either
-   - right-click `Crowsnest.app` in Finder → **Open** → **Open**, or
+2. The app is ad-hoc signed but not notarized (there is no Apple Developer account behind it), so macOS blocks the first launch once. Either
+   - open it, click **Done** on the warning, then go to **System Settings → Privacy & Security** and click **Open Anyway** (on macOS 15 and later right-click → Open no longer skips this), or
    - remove the quarantine flag:
 
      ```bash
      xattr -dr com.apple.quarantine /Applications/Crowsnest.app
      ```
+
+   After the first launch it opens normally.
 
 ### From source
 
