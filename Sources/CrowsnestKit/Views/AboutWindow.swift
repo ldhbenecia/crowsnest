@@ -1,41 +1,57 @@
 import AppKit
 import SwiftUI
 
-/// 정보 창 — 메뉴바 앱이라 평소엔 Dock 에 없고, 이 창이 떠 있는 동안만 Dock · 앱 메뉴를 보여줌
+/// 정보 · 설정 같은 일반 창 — 메뉴바 앱이라 평소엔 Dock 에 없고, 이런 창이 하나라도 떠 있는 동안만 Dock · 앱 메뉴를 보여줌
 @MainActor
-public final class AboutWindow: NSObject, NSWindowDelegate {
-    private static let shared = AboutWindow()
+final class AppWindow: NSObject, NSWindowDelegate {
+    private static var openWindows: Set<ObjectIdentifier> = []
 
-    private lazy var window: NSWindow = {
-        let window = NSWindow(
-            contentRect: .zero,
-            styleMask: [.titled, .closable, .fullSizeContentView],
-            backing: .buffered,
-            defer: true
-        )
-        window.title = "Crowsnest 정보"
-        window.titlebarAppearsTransparent = true
-        window.titleVisibility = .hidden
-        window.isMovableByWindowBackground = true
+    private let window: NSWindow
+
+    convenience init(title: String, hidesTitleBar: Bool, content: some View) {
+        self.init(title: title, hidesTitleBar: hidesTitleBar, contentViewController: NSHostingController(rootView: content))
+    }
+
+    init(title: String, hidesTitleBar: Bool, contentViewController: NSViewController) {
+        window = NSWindow(contentViewController: contentViewController)
+        window.styleMask = hidesTitleBar ? [.titled, .closable, .fullSizeContentView] : [.titled, .closable]
+        super.init()
+        window.title = title
+        if hidesTitleBar {
+            window.titlebarAppearsTransparent = true
+            window.titleVisibility = .hidden
+            window.isMovableByWindowBackground = true
+        }
         window.isReleasedWhenClosed = false
-        window.contentView = NSHostingView(rootView: AboutView())
         window.delegate = self
         window.center()
-        return window
-    }()
+    }
 
-    public static func show() {
+    func show() {
+        Self.openWindows.insert(ObjectIdentifier(window))
         NSApp.setActivationPolicy(.regular)
         // 정책을 바꾼 직후 바로 활성화하면 창만 뜨고 포커스 · 앱 메뉴가 안 넘어올 때가 있어서 한 박자 늦춤
-        DispatchQueue.main.async {
+        DispatchQueue.main.async { [window] in
             NSApp.activate()
-            shared.window.makeKeyAndOrderFront(nil)
+            window.makeKeyAndOrderFront(nil)
         }
     }
 
-    /// 창을 닫으면 다시 메뉴바 전용으로
-    public func windowWillClose(_ notification: Notification) {
-        NSApp.setActivationPolicy(.accessory)
+    /// 마지막 창이 닫히면 다시 메뉴바 전용으로
+    func windowWillClose(_ notification: Notification) {
+        Self.openWindows.remove(ObjectIdentifier(window))
+        if Self.openWindows.isEmpty {
+            NSApp.setActivationPolicy(.accessory)
+        }
+    }
+}
+
+@MainActor
+public enum AboutWindow {
+    private static let window = AppWindow(title: "Crowsnest 정보", hidesTitleBar: true, content: AboutView())
+
+    public static func show() {
+        window.show()
     }
 }
 

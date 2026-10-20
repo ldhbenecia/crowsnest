@@ -15,7 +15,7 @@ final class Notifier: NSObject {
     }
 
     /// 권한을 거부했으면 시스템이 안 띄움 — 사용자 선택이라 우회하지 않음
-    func post(title: String, body: String, link: URL) {
+    func post(title: String, body: String, link: URL, playsSound: Bool) {
         guard isBundled else {
             postWithAppleScript(title: title, body: body)
             return
@@ -23,7 +23,7 @@ final class Notifier: NSObject {
         let content = UNMutableNotificationContent()
         content.title = title
         content.body = body
-        content.sound = .default
+        content.sound = playsSound ? .default : nil
         content.userInfo = ["url": link.absoluteString]
         UNUserNotificationCenter.current().add(
             UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: nil)

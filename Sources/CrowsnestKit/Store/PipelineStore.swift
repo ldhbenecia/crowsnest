@@ -17,14 +17,13 @@ final class PipelineStore {
     private(set) var isRefreshing = false
     private(set) var lastRefreshedAt: Date?
     private(set) var hasLoadedCatalogs = false
-    var notificationsEnabled: Bool {
-        didSet { Preferences.notificationsMuted = !notificationsEnabled }
-    }
+    private(set) var configuration: AppConfiguration
     /// 설정 파일 · aws CLI 문제처럼 패널 맨 위에 띄울 것
-    let notices: [String]
+    private(set) var notices: [String]
+    /// 찾은 aws 실행 파일 — 설정 창에 보여줌
+    private(set) var awsCLIPath: String?
 
-    @ObservationIgnored private let configuration: AppConfiguration
-    @ObservationIgnored private let service: CodePipelineService?
+    @ObservationIgnored private var service: CodePipelineService?
     /// 미리보기 스토어는 알림 권한을 묻지 않게 nil
     @ObservationIgnored private let notifier: Notifier?
     @ObservationIgnored private var previousConditions: [PipelineRef: PipelineCondition] = [:]
@@ -34,21 +33,20 @@ final class PipelineStore {
     @ObservationIgnored private var isRefreshRequested = false
     /// 화면이 꺼졌거나 잠겼을 때 — 아무도 안 보니 폴링을 멈춤
     @ObservationIgnored private var isSuspended = false
+    @ObservationIgnored private var isCatalogReloadPending = false
 
     private init() {
         let loaded = AppConfiguration.load()
-        configuration = loaded.configuration
-        var notices = loaded.error.map { [$0] } ?? []
-        if let cli = AWSCommandLine.locate(preferredPath: loaded.configuration.awsCLIPath) {
-            service = CodePipelineService(cli: cli, configuration: loaded.configuration)
-        } else {
-            service = nil
-            notices.append("aws CLI 를 못 찾음 · brew install awscli 또는 config.json 에 awsCLIPath 지정")
+        var configuration = loaded.configuration
+        if Preferences.takeLegacyNotificationsMuted() {
+            configuration.notificationsEnabled = false
+            try? configuration.save()
         }
-        self.notices = notices
+        self.configuration = configuration
+        notices = []
         selection = Preferences.selection
-        notificationsEnabled = !Preferences.notificationsMuted
         notifier = Notifier()
+        connect(loadError: loaded.error)
         observeScreenAndSession()
         startPolling()
     }
@@ -59,18 +57,73 @@ final class PipelineStore {
         configuration = AppConfiguration()
         service = nil
         notices = []
+        awsCLIPath = "/opt/homebrew/bin/aws"
         notifier = nil
         self.catalogs = catalogs
         hasLoadedCatalogs = true
         selection = previewSnapshots.map(\.ref)
         snapshots = Dictionary(uniqueKeysWithValues: previewSnapshots.map { ($0.ref, $0) })
         lastRefreshedAt = refreshedAt
-        notificationsEnabled = true
     }
     #endif
 
+    /// aws CLI 를 찾아 서비스를 새로 만듦 — aws 경로가 바뀔 때만. 자격 증명 캐시가 같이 새로 시작해서 리전 · 숨김 변경엔 안 부름
+    private func connect(loadError: String? = nil) {
+        var notices = loadError.map { [$0] } ?? []
+        if let cli = AWSCommandLine.locate(preferredPath: configuration.awsCLIPath) {
+            service = CodePipelineService(cli: cli)
+            awsCLIPath = cli.executableURL.path(percentEncoded: false)
+        } else {
+            service = nil
+            awsCLIPath = nil
+            notices.append("aws CLI 를 못 찾음 · brew install awscli 또는 설정 → AWS 에서 경로 지정")
+        }
+        self.notices = notices
+    }
+
+    /// 설정 창에서 바꾼 값 — 파일에 쓰고 재시작 없이 바로 반영
+    func updateConfiguration(_ change: (inout AppConfiguration) -> Void) {
+        var updated = configuration
+        change(&updated)
+        guard updated != configuration else { return }
+        let previous = configuration
+        configuration = updated
+        do {
+            try updated.save()
+        } catch {
+            logger.error("설정 저장 실패 · \(error.localizedDescription, privacy: .public)")
+        }
+        let pathChanged = updated.awsCLIPath != previous.awsCLIPath
+        let regionsChanged = updated.defaultRegion != previous.defaultRegion || updated.regionOverrides != previous.regionOverrides
+        // 숨기기는 목록에서 빼기만 하면 되고, 다시 보이게 할 때만 그 프로필의 파이프라인을 받아와야 함
+        let unhidden = !Set(previous.hiddenProfiles).subtracting(updated.hiddenProfiles).isEmpty
+        if pathChanged {
+            connect()
+        }
+        if pathChanged || regionsChanged || unhidden {
+            if hasLoadedCatalogs { reloadCatalogs() }
+        } else if updated.hiddenProfiles != previous.hiddenProfiles {
+            catalogs = catalogs.map { catalog in
+                var catalog = catalog
+                catalog.isHidden = updated.hiddenProfiles.contains(catalog.profile)
+                return catalog
+            }
+        }
+        // 알림 · 소리 같은 건 다음 조회를 기다려도 됨 — 바로 조회하는 건 결과가 달라지는 설정만
+        if pathChanged || regionsChanged || updated.hiddenProfiles != previous.hiddenProfiles
+            || updated.pollIntervalSeconds != previous.pollIntervalSeconds
+            || updated.activePollIntervalSeconds != previous.activePollIntervalSeconds {
+            requestRefresh()
+        }
+    }
+
+    /// 숨긴 프로필의 파이프라인은 선택은 남겨두고(다시 보이면 돌아오게) 화면 · 조회에서만 뺌
+    var visibleSelection: [PipelineRef] {
+        selection.filter { !configuration.hiddenProfiles.contains($0.profile) }
+    }
+
     var orderedSnapshots: [PipelineSnapshot] {
-        selection.compactMap { snapshots[$0] }
+        visibleSelection.compactMap { snapshots[$0] }
     }
 
     var menuBarStatus: MenuBarStatus {
@@ -104,19 +157,59 @@ final class PipelineStore {
         reloadCatalogs()
     }
 
+    /// 불러오는 도중에 설정이 바뀌면 그 결과는 옛 설정 기준이라 버리고 끝나자마자 다시 불러옴
     func reloadCatalogs() {
-        guard let service, !isLoadingCatalogs else { return }
+        guard let service else { return }
+        guard !isLoadingCatalogs else {
+            isCatalogReloadPending = true
+            return
+        }
         hasLoadedCatalogs = true
         isLoadingCatalogs = true
+        let requested = configuration
         Task {
+            let result: Result<[ProfileCatalog], any Error>
             do {
-                catalogs = try await service.loadCatalogs()
-                catalogError = nil
+                result = .success(try await service.loadCatalogs(using: requested))
             } catch {
+                result = .failure(error)
+            }
+            isLoadingCatalogs = false
+            if isCatalogReloadPending {
+                isCatalogReloadPending = false
+                reloadCatalogs()
+                return
+            }
+            switch result {
+            case .success(let loaded):
+                catalogs = loaded
+                catalogError = nil
+                followRegionChanges()
+            case .failure(let error):
                 catalogError = error.localizedDescription
                 logger.error("프로필 목록 조회 실패 · \(error.localizedDescription, privacy: .public)")
             }
-            isLoadingCatalogs = false
+        }
+    }
+
+    /// 프로필 리전을 바꾸면 이미 고른 파이프라인도 새 리전을 가리키게 — 새 리전에도 같은 이름이 있을 때만
+    private func followRegionChanges() {
+        let followed = Self.selection(selection, followingRegionsOf: catalogs)
+        guard followed != selection else { return }
+        for ref in selection where !followed.contains(ref) {
+            snapshots[ref] = nil
+            previousConditions[ref] = nil
+        }
+        selection = followed
+        Preferences.selection = selection
+        requestRefresh()
+    }
+
+    nonisolated static func selection(_ selection: [PipelineRef], followingRegionsOf catalogs: [ProfileCatalog]) -> [PipelineRef] {
+        selection.map { ref in
+            guard let catalog = catalogs.first(where: { $0.profile == ref.profile }),
+                  catalog.region != ref.region, catalog.pipelines.contains(ref.name) else { return ref }
+            return PipelineRef(profile: ref.profile, region: catalog.region, name: ref.name)
         }
     }
 
@@ -175,7 +268,7 @@ final class PipelineStore {
 
     private func refresh() async {
         guard let service else { return }
-        let targets = selection
+        let targets = visibleSelection
         let previous = snapshots
         isRefreshing = true
         let fresh = await withTaskGroup(of: PipelineSnapshot.self) { group in
@@ -212,9 +305,15 @@ final class PipelineStore {
         // 조회 실패는 상태를 모르는 것 — 직전 상태를 남겨둬야 인증이 풀린 뒤 끝난 실행도 알림
         if condition.isUnavailable { return }
         let previous = previousConditions.updateValue(condition, forKey: snapshot.ref)
-        guard notificationsEnabled, let notification = DeployNotification.make(previous: previous, snapshot: snapshot) else { return }
+        guard let notification = DeployNotification.make(previous: previous, snapshot: snapshot),
+              configuration.allows(notification.kind) else { return }
         logger.info("\(snapshot.ref.id, privacy: .public) \(condition.label, privacy: .public)")
-        notifier?.post(title: notification.title, body: notification.body, link: snapshot.ref.consoleURL)
+        notifier?.post(
+            title: notification.title,
+            body: notification.body,
+            link: snapshot.ref.consoleURL,
+            playsSound: configuration.notificationSound
+        )
     }
 
     private var pollInterval: Duration {
@@ -226,7 +325,7 @@ final class PipelineStore {
         let isAnyRunning = current.contains { $0.condition.isActive }
         let seconds = isAnyRunning ? configuration.activePollIntervalSeconds : configuration.pollIntervalSeconds
         // 저전력 모드면 배터리를 아끼라는 뜻이라 두 배로 늘림
-        let multiplier = ProcessInfo.processInfo.isLowPowerModeEnabled ? 2 : 1
+        let multiplier = configuration.slowDownInLowPowerMode && ProcessInfo.processInfo.isLowPowerModeEnabled ? 2 : 1
         return .seconds(max(5, seconds) * multiplier)
     }
 }

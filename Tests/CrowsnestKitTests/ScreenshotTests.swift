@@ -31,6 +31,13 @@ struct ScreenshotTests {
         try render(PanelChrome { PipelinePicker(store: store) {} }, scheme: .dark, name: "picker")
     }
 
+    @Test func 설정() throws {
+        let store = PipelineStore(previewSnapshots: [], catalogs: SampleData.catalogs, refreshedAt: now)
+        try render(PanelChrome { GeneralSettings(store: store).frame(width: SettingsWindow.width) }, scheme: .dark, name: "settings-general")
+        try render(PanelChrome { NotificationSettings(store: store).frame(width: SettingsWindow.width) }, scheme: .dark, name: "settings-notifications")
+        try render(PanelChrome { AWSSettings(store: store).frame(width: SettingsWindow.width) }, scheme: .dark, name: "settings-aws")
+    }
+
     @Test func 메뉴바() throws {
         let snapshots = Dictionary(uniqueKeysWithValues: SampleData.snapshots(now: now).map { ($0.ref.name, $0) })
         func status(_ names: String...) -> MenuBarStatus {

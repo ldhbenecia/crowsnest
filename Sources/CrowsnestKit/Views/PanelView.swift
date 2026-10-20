@@ -36,7 +36,7 @@ struct PanelView: View {
             Spacer()
             ToolbarIconButton(systemName: "arrow.clockwise", help: "새로고침", isBusy: store.isRefreshing, action: store.refreshNow)
             ToolbarIconButton(systemName: "plus", help: "파이프라인 추가 · 빼기") { setPicking(true) }
-            PanelMenu(store: store)
+            PanelMenu()
         }
         .padding(.leading, 14)
         .padding(.trailing, 8)
@@ -50,10 +50,10 @@ struct PanelView: View {
     private var content: some View {
         VStack(alignment: .leading, spacing: 2) {
             ForEach(store.notices, id: \.self) { NoticeView(message: $0).padding(.bottom, 6) }
-            if store.selection.isEmpty {
+            if store.visibleSelection.isEmpty {
                 EmptyState { setPicking(true) }
             }
-            ForEach(store.selection) { ref in
+            ForEach(store.visibleSelection) { ref in
                 PipelineRow(ref: ref, snapshot: store.snapshots[ref])
             }
         }
@@ -83,7 +83,7 @@ private struct HeaderSummary: View {
         let snapshots = store.orderedSnapshots
         let activeCount = snapshots.filter(\.condition.isActive).count
         HStack(spacing: 0) {
-            Text(activeCount > 0 ? "\(activeCount)개 진행 중" : "\(store.selection.count)개 지켜보는 중")
+            Text(activeCount > 0 ? "\(activeCount)개 진행 중" : "\(store.visibleSelection.count)개 지켜보는 중")
             if let lastRefreshedAt = store.lastRefreshedAt {
                 Text(" · ")
                 RelativeTimeText(date: lastRefreshedAt, suffix: " 갱신")
@@ -93,16 +93,13 @@ private struct HeaderSummary: View {
 }
 
 private struct PanelMenu: View {
-    @Bindable var store: PipelineStore
 
     var body: some View {
         Menu {
-            Toggle("배포 알림", isOn: $store.notificationsEnabled)
-            Divider()
-            Button("설정 파일 열기") { NSWorkspace.shared.open(AppConfiguration.fileURL) }
-            Text("바꾸면 앱을 다시 켜야 반영됨")
-            Divider()
+            Button("설정…") { SettingsWindow.show() }
+                .keyboardShortcut(",")
             Button("Crowsnest 정보") { AboutWindow.show() }
+            Divider()
             Button("Crowsnest 종료") { NSApplication.shared.terminate(nil) }
                 .keyboardShortcut("q")
         } label: {

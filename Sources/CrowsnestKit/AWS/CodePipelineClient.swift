@@ -39,7 +39,7 @@ struct CodePipelineClient: Sendable {
         credentials: AWSCredentials
     ) async throws -> Response {
         // 리전이 URL 호스트에 들어가서 이상한 값이면 서명된 요청이 엉뚱한 곳으로 나감
-        guard region.wholeMatch(of: /[a-z]{2}(-[a-z]+)+-\d+/) != nil,
+        guard AWSRegion.isValid(region),
               let url = URL(string: "https://codepipeline.\(region).amazonaws.com/") else {
             throw AWSError(profile: profile, kind: .other, detail: "리전 이름이 이상함 · \(region)")
         }
@@ -70,6 +70,14 @@ struct CodePipelineClient: Sendable {
             throw AWSError.service(profile: profile, code: code, message: failure?.message)
         }
         return try JSONDecoder().decode(Response.self, from: data)
+    }
+}
+
+enum AWSRegion {
+    /// ap-northeast-2 · us-gov-west-1 같은 모양만 — 호스트 이름에 들어가서 점 · 슬래시가 섞이면 안 됨
+    static func isValid(_ region: String) -> Bool {
+        // \d 는 다른 문자 체계의 숫자도 받아서 ASCII 숫자로 좁힘
+        region.wholeMatch(of: /[a-z]{2}(-[a-z]+)+-[0-9]+/) != nil
     }
 }
 

@@ -33,7 +33,7 @@ struct PipelinePicker: View {
                             .padding(.vertical, 24)
                     }
                     let selected = Set(store.selection)
-                    ForEach(store.catalogs) { catalog in
+                    ForEach(store.catalogs.filter { !$0.isHidden }) { catalog in
                         ProfileSection(store: store, catalog: catalog, query: query, selected: selected)
                     }
                 }

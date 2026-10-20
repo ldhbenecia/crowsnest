@@ -1,6 +1,6 @@
 import Foundation
 
-/// ~/.config/crowsnest/config.json — 바꾸면 앱 재시작해야 반영됨
+/// ~/.config/crowsnest/config.json — 설정 창이 바로 쓰고 바로 반영함. 파일로 관리하고 싶으면 직접 고쳐도 됨(그땐 재시작)
 struct AppConfiguration: Codable, Sendable, Equatable {
     /// aws configure 에 region 이 없는 프로필(SSO 전용 등)에 쓸 리전
     var defaultRegion = "ap-northeast-1"
@@ -11,28 +11,57 @@ struct AppConfiguration: Codable, Sendable, Equatable {
     var pollIntervalSeconds = 30
     /// 진행 중인 실행이 하나라도 있을 때의 갱신 주기
     var activePollIntervalSeconds = 10
+    var slowDownInLowPowerMode = true
+
+    var notificationsEnabled = true
+    var notifyOnSuccess = true
+    var notifyOnFailure = true
+    var notifyOnApprovalRequest = true
+    var notifyOnRejection = true
+    var notificationSound = true
 
     static let fileURL = FileManager.default.homeDirectoryForCurrentUser
         .appending(path: ".config/crowsnest/config.json")
 
     init() {}
 
+    /// 없는 키는 기본값 — 예전 버전이 만든 파일도 그대로 읽힘
     init(from decoder: any Decoder) throws {
-        let fallback = AppConfiguration()
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        defaultRegion = try container.decodeIfPresent(String.self, forKey: .defaultRegion) ?? fallback.defaultRegion
-        regionOverrides = try container.decodeIfPresent([String: String].self, forKey: .regionOverrides) ?? fallback.regionOverrides
-        hiddenProfiles = try container.decodeIfPresent([String].self, forKey: .hiddenProfiles) ?? fallback.hiddenProfiles
+        func value<Value: Decodable>(_ key: CodingKeys, _ fallback: Value) throws -> Value {
+            try container.decodeIfPresent(Value.self, forKey: key) ?? fallback
+        }
+        let defaults = AppConfiguration()
+        defaultRegion = try value(.defaultRegion, defaults.defaultRegion)
+        regionOverrides = try value(.regionOverrides, defaults.regionOverrides)
+        hiddenProfiles = try value(.hiddenProfiles, defaults.hiddenProfiles)
         awsCLIPath = try container.decodeIfPresent(String.self, forKey: .awsCLIPath)
-        pollIntervalSeconds = try container.decodeIfPresent(Int.self, forKey: .pollIntervalSeconds) ?? fallback.pollIntervalSeconds
-        activePollIntervalSeconds = try container.decodeIfPresent(Int.self, forKey: .activePollIntervalSeconds) ?? fallback.activePollIntervalSeconds
+        pollIntervalSeconds = try value(.pollIntervalSeconds, defaults.pollIntervalSeconds)
+        activePollIntervalSeconds = try value(.activePollIntervalSeconds, defaults.activePollIntervalSeconds)
+        slowDownInLowPowerMode = try value(.slowDownInLowPowerMode, defaults.slowDownInLowPowerMode)
+        notificationsEnabled = try value(.notificationsEnabled, defaults.notificationsEnabled)
+        notifyOnSuccess = try value(.notifyOnSuccess, defaults.notifyOnSuccess)
+        notifyOnFailure = try value(.notifyOnFailure, defaults.notifyOnFailure)
+        notifyOnApprovalRequest = try value(.notifyOnApprovalRequest, defaults.notifyOnApprovalRequest)
+        notifyOnRejection = try value(.notifyOnRejection, defaults.notifyOnRejection)
+        notificationSound = try value(.notificationSound, defaults.notificationSound)
+    }
+
+    func allows(_ kind: DeployNotification.Kind) -> Bool {
+        guard notificationsEnabled else { return false }
+        return switch kind {
+        case .succeeded: notifyOnSuccess
+        case .failed, .stopped: notifyOnFailure
+        case .awaitingApproval: notifyOnApprovalRequest
+        case .rejected: notifyOnRejection
+        }
     }
 
     /// 파일이 없으면 기본값으로 만들어 둠 — 어떤 키가 있는지 열어보면 바로 보이게
     static func load(from url: URL = fileURL) -> (configuration: AppConfiguration, error: String?) {
         guard FileManager.default.fileExists(atPath: url.path(percentEncoded: false)) else {
             let configuration = AppConfiguration()
-            try? configuration.write(to: url)
+            try? configuration.save(to: url)
             return (configuration, nil)
         }
         // 있는데 못 읽는 파일은 덮어쓰지 않음
@@ -44,7 +73,7 @@ struct AppConfiguration: Codable, Sendable, Equatable {
         }
     }
 
-    private func write(to url: URL) throws {
+    func save(to url: URL = fileURL) throws {
         try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
@@ -52,10 +81,9 @@ struct AppConfiguration: Codable, Sendable, Equatable {
     }
 }
 
-/// 메뉴에서 바꾸는 값 — config.json 과 달리 앱이 직접 씀
+/// 앱이 알아서 기억하는 값 — 사람이 고칠 일이 없어서 config.json 대신 UserDefaults
 enum Preferences {
     private static let selectionKey = "selectedPipelines"
-    private static let notificationsMutedKey = "notificationsMuted"
 
     static var selection: [PipelineRef] {
         get {
@@ -65,8 +93,11 @@ enum Preferences {
         set { UserDefaults.standard.set(try? JSONEncoder().encode(newValue), forKey: selectionKey) }
     }
 
-    static var notificationsMuted: Bool {
-        get { UserDefaults.standard.bool(forKey: notificationsMutedKey) }
-        set { UserDefaults.standard.set(newValue, forKey: notificationsMutedKey) }
+    /// 예전 버전은 알림 끄기를 여기 뒀음 — 한 번 읽어서 config.json 으로 옮기고 지움
+    static func takeLegacyNotificationsMuted() -> Bool {
+        let key = "notificationsMuted"
+        guard UserDefaults.standard.object(forKey: key) != nil else { return false }
+        defer { UserDefaults.standard.removeObject(forKey: key) }
+        return UserDefaults.standard.bool(forKey: key)
     }
 }

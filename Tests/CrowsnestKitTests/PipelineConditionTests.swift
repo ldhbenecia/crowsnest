@@ -82,7 +82,7 @@ struct DeployNotificationTests {
         let snapshot = try snapshot("Failed", lastAction: rejectedApproval)
 
         #expect(DeployNotification.make(previous: .running(nil), snapshot: snapshot)
-            == DeployNotification(title: "web-prod 배포 반려", body: "reviewer@example.com 님이 반려함 · sample"))
+            == DeployNotification(kind: .rejected, title: "web-prod 배포 반려", body: "reviewer@example.com 님이 반려함 · sample"))
     }
 
     @Test func 승인_대기에_들어갈_때_한_번만_알린다() throws {
@@ -96,6 +96,6 @@ struct DeployNotificationTests {
         let snapshot = try snapshot("Failed", lastAction: failedBuild)
 
         #expect(DeployNotification.make(previous: .running(nil), snapshot: snapshot)
-            == DeployNotification(title: "web-prod 배포 실패", body: "Approve 단계에서 실패 · sample"))
+            == DeployNotification(kind: .failed, title: "web-prod 배포 실패", body: "Approve 단계에서 실패 · sample"))
     }
 }

@@ -18,7 +18,7 @@ public struct CrowsnestMenuBar: Scene {
                 Button("Crowsnest 정보") { AboutWindow.show() }
             }
             CommandGroup(replacing: .appSettings) {
-                Button("설정 파일 열기…") { NSWorkspace.shared.open(AppConfiguration.fileURL) }
+                Button("설정…") { SettingsWindow.show() }
                     .keyboardShortcut(",")
             }
             CommandGroup(replacing: .newItem) {}
