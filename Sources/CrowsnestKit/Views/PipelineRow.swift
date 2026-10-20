@@ -64,7 +64,7 @@ struct PipelineRow: View {
             .buttonStyle(.plain)
             .foregroundStyle(.secondary)
             .opacity(isHovered ? 1 : 0)
-            .help("AWS 콘솔에서 열기")
+            .help(L("AWS 콘솔에서 열기", "Open in AWS Console"))
             Image(systemName: "chevron.right")
                 .font(.system(size: 10, weight: .semibold))
                 .foregroundStyle(.tertiary)
@@ -130,19 +130,19 @@ private struct AttentionDetail: View {
         switch snapshot.condition {
         case .running(let progress?):
             ForEach(progress.stage.actions.filter { $0.status == .inProgress }) { action in
-                ActionLine(action: action, caption: "진행 중")
+                ActionLine(action: action, caption: L("진행 중", "running"))
             }
         case .awaitingApproval(let progress):
             HStack(spacing: 8) {
-                Text("\(progress.stage.name) 단계에서 승인을 기다리는 중")
+                Text(L("\(progress.stage.name) 단계에서 승인을 기다리는 중", "Waiting for approval at \(progress.stage.name)"))
                     .foregroundStyle(.secondary)
                 Spacer(minLength: 0)
-                Button("콘솔에서 승인") { NSWorkspace.shared.open(snapshot.ref.consoleURL) }
+                Button(L("콘솔에서 승인", "Approve in Console")) { NSWorkspace.shared.open(snapshot.ref.consoleURL) }
                     .controlSize(.small)
             }
             .font(.system(size: 11))
         case .rejected(let decidedBy, let comment):
-            Text([decidedBy.map { "\($0) 님이 반려함" } ?? "반려됨", comment].compactMap { $0 }.joined(separator: " · "))
+            Text([decidedBy.map { L("\($0) 님이 반려함", "Rejected by \($0)") } ?? L("반려됨", "Rejected"), comment].compactMap { $0 }.joined(separator: " · "))
                 .font(.system(size: 11))
                 .foregroundStyle(.secondary)
                 .lineLimit(2)
@@ -199,13 +199,13 @@ private struct LogLink: View {
     var body: some View {
         Link(destination: url) {
             if showsTitle {
-                Label("로그", systemImage: "arrow.up.right")
+                Label(L("로그", "Logs"), systemImage: "arrow.up.right")
             } else {
                 Image(systemName: "arrow.up.right")
             }
         }
         .foregroundStyle(Color.crowsnestAccent)
-        .help("빌드 로그 열기")
+        .help(L("빌드 로그 열기", "Open build logs"))
     }
 }
 
@@ -221,7 +221,7 @@ private struct StageList: View {
                         StatusIcon(appearance: stage.appearance, size: 11)
                         Text(stage.name).font(.system(size: 11, weight: .medium))
                         if !stage.isCurrent && stage.status != nil {
-                            Text("이전 실행").font(.system(size: 10)).foregroundStyle(.tertiary)
+                            Text(L("이전 실행", "previous run")).font(.system(size: 10)).foregroundStyle(.tertiary)
                         }
                     }
                     ForEach(stage.actions) { action in

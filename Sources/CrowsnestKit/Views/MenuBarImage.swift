@@ -10,21 +10,24 @@ enum MenuBarImage {
     private static let approvalSymbol = NSImage(systemSymbolName: "hand.raised.fill", accessibilityDescription: nil)?
         .withSymbolConfiguration(.init(pointSize: 12, weight: .semibold))
 
-    /// 폴링마다 라벨이 다시 그려져도 모양이 같으면 이미지를 새로 안 만듦
-    private static var lastActive: (pipeline: MenuBarStatus.ActivePipeline, image: NSImage)?
+    /// 폴링마다 라벨이 다시 그려져도 모양이 같으면 이미지를 새로 안 만듦 — 읽어주는 설명이 언어를 따라서 언어도 키에 넣음
+    private static var lastActive: (pipeline: MenuBarStatus.ActivePipeline, isKorean: Bool, image: NSImage)?
 
     static func make(for status: MenuBarStatus) -> NSImage {
         switch status {
         case .idle:
             return CrowsnestGlyph.menuBarImage
         case .needsAttention:
-            return CrowsnestGlyph.menuBarBadgedImage
+            // 글리프 이미지는 한 번만 만들어서 VoiceOver 설명만 그때 언어로 바꿔 끼움
+            let image = CrowsnestGlyph.menuBarBadgedImage
+            image.accessibilityDescription = L("Crowsnest · 확인 필요", "Crowsnest · needs attention")
+            return image
         case .active(let pipeline):
-            if let lastActive, lastActive.pipeline == pipeline {
+            if let lastActive, lastActive.pipeline == pipeline, lastActive.isKorean == Localization.isKorean {
                 return lastActive.image
             }
             let image = stacked(pipeline)
-            lastActive = (pipeline, image)
+            lastActive = (pipeline, Localization.isKorean, image)
             return image
         }
     }
@@ -75,7 +78,9 @@ enum MenuBarImage {
             return true
         }
         image.isTemplate = true
-        let stageDescription = pipeline.isAwaitingApproval ? "승인 대기" : position.map { "\($0)/\(count) 단계 진행 중" } ?? "진행 중"
+        let stageDescription = pipeline.isAwaitingApproval
+            ? L("승인 대기", "awaiting approval")
+            : position.map { L("\($0)/\(count) 단계 진행 중", "stage \($0) of \(count) running") } ?? L("진행 중", "in progress")
         image.accessibilityDescription = "\(title) · \(stageDescription)"
         return image
     }

@@ -18,10 +18,28 @@ final class PipelineStore {
     private(set) var lastRefreshedAt: Date?
     private(set) var hasLoadedCatalogs = false
     private(set) var configuration: AppConfiguration
-    /// 설정 파일 · aws CLI 문제처럼 패널 맨 위에 띄울 것
-    private(set) var notices: [String]
-    /// 찾은 aws 실행 파일 — 설정 창에 보여줌
+    /// 찾은 aws 실행 파일 — 설정 창에 보여줌, nil 이면 못 찾은 것
     private(set) var awsCLIPath: String?
+    /// config.json 을 못 읽은 원인
+    private let configurationLoadError: String?
+
+    /// 설정 파일 · aws CLI 문제처럼 패널 맨 위에 띄울 것 — 언어를 바꾸면 바로 다시 그려지게 그때그때 만듦
+    var notices: [String] {
+        var notices: [String] = []
+        if let configurationLoadError {
+            notices.append(L(
+                "config.json 을 못 읽어서 기본값으로 실행 중 · \(configurationLoadError)",
+                "Couldn't read config.json, running with defaults · \(configurationLoadError)"
+            ))
+        }
+        if awsCLIPath == nil {
+            notices.append(L(
+                "aws CLI 를 못 찾음 · brew install awscli 또는 설정 → AWS 에서 경로 지정",
+                "aws CLI not found · install it with brew install awscli or choose it in Settings → AWS"
+            ))
+        }
+        return notices
+    }
 
     @ObservationIgnored private var service: CodePipelineService?
     /// 미리보기 스토어는 알림 권한을 묻지 않게 nil
@@ -43,10 +61,11 @@ final class PipelineStore {
             try? configuration.save()
         }
         self.configuration = configuration
-        notices = []
+        configurationLoadError = loaded.error
+        Localization.apply(configuration.language)
         selection = Preferences.selection
         notifier = Notifier()
-        connect(loadError: loaded.error)
+        connect()
         observeScreenAndSession()
         startPolling()
     }
@@ -55,8 +74,8 @@ final class PipelineStore {
     /// 미리보기 · 스크린샷용 고정 데이터 — aws 를 안 부르고 폴링 · 알림도 안 함. 배포 빌드엔 안 들어감
     init(previewSnapshots: [PipelineSnapshot], catalogs: [ProfileCatalog] = [], refreshedAt: Date) {
         configuration = AppConfiguration()
+        configurationLoadError = nil
         service = nil
-        notices = []
         awsCLIPath = "/opt/homebrew/bin/aws"
         notifier = nil
         self.catalogs = catalogs
@@ -68,17 +87,10 @@ final class PipelineStore {
     #endif
 
     /// aws CLI 를 찾아 서비스를 새로 만듦 — aws 경로가 바뀔 때만. 자격 증명 캐시가 같이 새로 시작해서 리전 · 숨김 변경엔 안 부름
-    private func connect(loadError: String? = nil) {
-        var notices = loadError.map { [$0] } ?? []
-        if let cli = AWSCommandLine.locate(preferredPath: configuration.awsCLIPath) {
-            service = CodePipelineService(cli: cli)
-            awsCLIPath = cli.executableURL.path(percentEncoded: false)
-        } else {
-            service = nil
-            awsCLIPath = nil
-            notices.append("aws CLI 를 못 찾음 · brew install awscli 또는 설정 → AWS 에서 경로 지정")
-        }
-        self.notices = notices
+    private func connect() {
+        let cli = AWSCommandLine.locate(preferredPath: configuration.awsCLIPath)
+        service = cli.map(CodePipelineService.init(cli:))
+        awsCLIPath = cli?.executableURL.path(percentEncoded: false)
     }
 
     /// 설정 창에서 바꾼 값 — 파일에 쓰고 재시작 없이 바로 반영
@@ -92,6 +104,9 @@ final class PipelineStore {
             try updated.save()
         } catch {
             logger.error("설정 저장 실패 · \(error.localizedDescription, privacy: .public)")
+        }
+        if updated.language != previous.language {
+            Localization.apply(updated.language)
         }
         let pathChanged = updated.awsCLIPath != previous.awsCLIPath
         let regionsChanged = updated.defaultRegion != previous.defaultRegion || updated.regionOverrides != previous.regionOverrides

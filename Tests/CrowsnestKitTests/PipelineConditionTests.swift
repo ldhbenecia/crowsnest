@@ -71,6 +71,10 @@ struct PipelineConditionTests {
 }
 
 struct DeployNotificationTests {
+    init() {
+        Localization.apply(.korean)
+    }
+
     @Test func 앱을_켠_직후_첫_조회에선_안_울린다() throws {
         let snapshot = try snapshot("Failed", lastAction: rejectedApproval)
 

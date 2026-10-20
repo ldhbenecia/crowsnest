@@ -19,14 +19,14 @@ struct PipelinePicker: View {
                     if store.isLoadingCatalogs && store.catalogs.isEmpty {
                         HStack(spacing: 8) {
                             ProgressView().controlSize(.small)
-                            Text("aws configure 프로필에서 파이프라인을 불러오는 중")
+                            Text(L("aws configure 프로필에서 파이프라인을 불러오는 중", "Loading pipelines from your aws configure profiles"))
                         }
                         .font(.system(size: 11))
                         .foregroundStyle(.secondary)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 24)
                     } else if store.hasLoadedCatalogs && store.catalogs.isEmpty && store.catalogError == nil {
-                        Text("aws configure 에 등록된 프로필이 없음")
+                        Text(L("aws configure 에 등록된 프로필이 없음", "No profiles in aws configure"))
                             .font(.system(size: 11))
                             .foregroundStyle(.secondary)
                             .frame(maxWidth: .infinity)
@@ -49,10 +49,10 @@ struct PipelinePicker: View {
 
     private var header: some View {
         HStack(spacing: 8) {
-            ToolbarIconButton(systemName: "chevron.left", help: "돌아가기", action: done)
+            ToolbarIconButton(systemName: "chevron.left", help: L("돌아가기", "Back"), action: done)
             HStack(spacing: 5) {
                 Image(systemName: "magnifyingglass").foregroundStyle(.tertiary)
-                TextField("파이프라인 검색", text: $query)
+                TextField(L("파이프라인 검색", "Search pipelines"), text: $query)
                     .textFieldStyle(.plain)
                     .focused($isSearchFocused)
             }
@@ -62,11 +62,11 @@ struct PipelinePicker: View {
             .background(.quaternary.opacity(0.6), in: RoundedRectangle(cornerRadius: 7, style: .continuous))
             ToolbarIconButton(
                 systemName: "arrow.clockwise",
-                help: "프로필 · 파이프라인 목록 다시 불러오기",
+                help: L("프로필 · 파이프라인 목록 다시 불러오기", "Reload profiles and pipelines"),
                 isBusy: store.isLoadingCatalogs,
                 action: store.reloadCatalogs
             )
-            Button("완료", action: done)
+            Button(L("완료", "Done"), action: done)
                 .buttonStyle(.borderedProminent)
                 .tint(.crowsnestAccent)
                 .controlSize(.small)
@@ -99,7 +99,7 @@ private struct ProfileSection: View {
                     Spacer()
                     let selectedCount = selected.count { $0.profile == catalog.profile && $0.region == catalog.region }
                     if selectedCount > 0 {
-                        Text("\(selectedCount)개 선택")
+                        Text(L("\(selectedCount)개 선택", "\(selectedCount) selected"))
                             .font(.system(size: 10))
                             .foregroundStyle(.secondary)
                     }

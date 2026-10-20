@@ -119,11 +119,11 @@ enum PipelineCondition: Sendable, Equatable {
 
     var label: String {
         switch self {
-        case .unavailable: "조회 실패"
-        case .neverRun: "실행 기록 없음"
-        case .running: "진행 중"
-        case .awaitingApproval: "승인 대기"
-        case .rejected: "반려됨"
+        case .unavailable: L("조회 실패", "Unavailable")
+        case .neverRun: L("실행 기록 없음", "Never run")
+        case .running: L("진행 중", "In progress")
+        case .awaitingApproval: L("승인 대기", "Awaiting approval")
+        case .rejected: L("반려됨", "Rejected")
         case .finished(let status): status.label
         }
     }

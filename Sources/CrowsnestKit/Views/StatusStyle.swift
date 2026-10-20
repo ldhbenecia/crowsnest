@@ -157,25 +157,30 @@ private struct SpinnerRing: View {
 /// 상대 시각은 데이터가 안 바뀌어도 흘러가야 해서 따로 다시 그림
 struct RelativeTimeText: View {
     let date: Date
+    var prefix = ""
     var suffix = ""
 
-    private static let formatter: RelativeDateTimeFormatter = {
+    private static let koreanFormatter = makeFormatter(Locale(identifier: "ko_KR"))
+    private static let englishFormatter = makeFormatter(Locale(identifier: "en_US"))
+
+    private static func makeFormatter(_ locale: Locale) -> RelativeDateTimeFormatter {
         let formatter = RelativeDateTimeFormatter()
-        formatter.locale = Locale(identifier: "ko_KR")
+        formatter.locale = locale
         formatter.unitsStyle = .short
         return formatter
-    }()
+    }
 
     @Environment(\.isPanelVisible) private var isPanelVisible
 
     var body: some View {
         TimelineView(.animation(minimumInterval: 30, paused: !isPanelVisible)) { context in
-            Text(Self.describe(date, relativeTo: context.date) + suffix)
+            Text(prefix + Self.describe(date, relativeTo: context.date) + suffix)
         }
     }
 
     private static func describe(_ date: Date, relativeTo now: Date) -> String {
-        now.timeIntervalSince(date) < 60 ? "방금" : formatter.localizedString(for: date, relativeTo: now)
+        guard now.timeIntervalSince(date) >= 60 else { return L("방금", "just now") }
+        return (Localization.isKorean ? koreanFormatter : englishFormatter).localizedString(for: date, relativeTo: now)
     }
 }
 
@@ -224,6 +229,16 @@ struct ToolbarIconButton: View {
         .disabled(isBusy)
         .help(help)
         .onHover { isHovered = $0 }
+    }
+}
+
+/// 언어를 바꾸면 안쪽 화면을 통째로 다시 만듦 — L() 문구는 관찰 대상이 아니라 그냥 두면 안 바뀜
+struct LanguageScope<Content: View>: View {
+    let store: PipelineStore
+    @ViewBuilder let content: Content
+
+    var body: some View {
+        content.id(store.configuration.language)
     }
 }
 

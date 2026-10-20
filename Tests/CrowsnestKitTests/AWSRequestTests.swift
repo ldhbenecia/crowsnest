@@ -3,6 +3,11 @@ import Testing
 @testable import CrowsnestKit
 
 struct AWSRequestTests {
+    init() {
+        // 문구 비교라 CI 러너(영어) 에서도 한국어로 고정
+        Localization.apply(.korean)
+    }
+
     /// AWS Signature Version 4 공식 테스트 묶음의 get-vanilla — 키 · 시각 · 서명 모두 문서에 실린 예제 값
     @Test func 공식_테스트_벡터와_같은_서명을_만든다() throws {
         let signer = SignatureV4(

@@ -15,6 +15,11 @@ struct ScreenshotTests {
     private let now = Date.now
     private let directory = URL(fileURLWithPath: outputDirectory ?? "")
 
+    init() {
+        // README 가 영어라 스크린샷도 영어로 — 이 묶음은 screenshots.sh 로 따로만 돌아서 다른 테스트와 안 겹침
+        Localization.apply(.english)
+    }
+
     @Test func 패널() throws {
         for (scheme, suffix) in [(ColorScheme.dark, "dark"), (.light, "light")] {
             let store = PipelineStore(previewSnapshots: SampleData.snapshots(now: now), refreshedAt: now)

@@ -7,16 +7,18 @@ final class AppWindow: NSObject, NSWindowDelegate {
     private static var openWindows: Set<ObjectIdentifier> = []
 
     private let window: NSWindow
+    /// 언어를 바꿀 수 있어서 열 때마다 다시 읽음 — nil 이면 내용 쪽(탭 컨트롤러)이 제목을 붙임
+    private let title: (() -> String)?
 
-    convenience init(title: String, hidesTitleBar: Bool, content: some View) {
+    convenience init(title: (() -> String)?, hidesTitleBar: Bool, content: some View) {
         self.init(title: title, hidesTitleBar: hidesTitleBar, contentViewController: NSHostingController(rootView: content))
     }
 
-    init(title: String, hidesTitleBar: Bool, contentViewController: NSViewController) {
+    init(title: (() -> String)?, hidesTitleBar: Bool, contentViewController: NSViewController) {
         window = NSWindow(contentViewController: contentViewController)
         window.styleMask = hidesTitleBar ? [.titled, .closable, .fullSizeContentView] : [.titled, .closable]
+        self.title = title
         super.init()
-        window.title = title
         if hidesTitleBar {
             window.titlebarAppearsTransparent = true
             window.titleVisibility = .hidden
@@ -28,6 +30,9 @@ final class AppWindow: NSObject, NSWindowDelegate {
     }
 
     func show() {
+        if let title {
+            window.title = title()
+        }
         Self.openWindows.insert(ObjectIdentifier(window))
         NSApp.setActivationPolicy(.regular)
         // 정책을 바꾼 직후 바로 활성화하면 창만 뜨고 포커스 · 앱 메뉴가 안 넘어올 때가 있어서 한 박자 늦춤
@@ -50,7 +55,11 @@ final class AppWindow: NSObject, NSWindowDelegate {
 
 @MainActor
 public enum AboutWindow {
-    private static let window = AppWindow(title: "Crowsnest 정보", hidesTitleBar: true, content: AboutView())
+    private static let window = AppWindow(
+        title: { L("Crowsnest 정보", "About Crowsnest") },
+        hidesTitleBar: true,
+        content: LanguageScope(store: .shared) { AboutView() }
+    )
 
     public static func show() {
         window.show()
@@ -88,7 +97,7 @@ private struct AboutView: View {
             Text("Crowsnest")
                 .font(.system(size: 20, weight: .semibold))
                 .padding(.top, 10)
-            Text("AWS CodePipeline 배포를 메뉴바에서")
+            Text(L("AWS CodePipeline 배포를 메뉴바에서", "AWS CodePipeline deployments in your menu bar"))
                 .font(.system(size: 12))
                 .foregroundStyle(.secondary)
                 .padding(.top, 3)
@@ -96,7 +105,7 @@ private struct AboutView: View {
             VStack(spacing: 2) {
                 Text(versionLine)
                 if let buildDate = info.buildDate {
-                    Text("빌드 \(buildDate)")
+                    Text(L("빌드 \(buildDate)", "Built \(buildDate)"))
                 }
             }
             .font(.system(size: 11))
@@ -107,7 +116,7 @@ private struct AboutView: View {
 
             HStack(spacing: 8) {
                 Button("GitHub") { NSWorkspace.shared.open(BuildInfo.repositoryURL) }
-                Button("릴리스 노트") { NSWorkspace.shared.open(BuildInfo.releasesURL) }
+                Button(L("릴리스 노트", "Release Notes")) { NSWorkspace.shared.open(BuildInfo.releasesURL) }
             }
             .controlSize(.large)
             .padding(.top, 20)
@@ -122,7 +131,8 @@ private struct AboutView: View {
     }
 
     private var versionLine: String {
-        guard let version = info.version else { return "개발 빌드" }
-        return info.commit.map { "버전 \(version) (\($0))" } ?? "버전 \(version)"
+        guard let version = info.version else { return L("개발 빌드", "Development build") }
+        let commit = info.commit.map { " (\($0))" } ?? ""
+        return L("버전 \(version)\(commit)", "Version \(version)\(commit)")
     }
 }

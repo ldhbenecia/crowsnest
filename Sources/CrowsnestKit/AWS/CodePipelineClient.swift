@@ -41,7 +41,7 @@ struct CodePipelineClient: Sendable {
         // 리전이 URL 호스트에 들어가서 이상한 값이면 서명된 요청이 엉뚱한 곳으로 나감
         guard AWSRegion.isValid(region),
               let url = URL(string: "https://codepipeline.\(region).amazonaws.com/") else {
-            throw AWSError(profile: profile, kind: .other, detail: "리전 이름이 이상함 · \(region)")
+            throw AWSError(profile: profile, kind: .other, detail: L("리전 이름이 이상함 · \(region)", "Invalid region name · \(region)"))
         }
         let body = try JSONEncoder().encode(request)
         let signer = SignatureV4(credentials: credentials, region: region, service: "codepipeline")

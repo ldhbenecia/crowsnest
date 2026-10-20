@@ -25,19 +25,23 @@ struct DeployNotification: Equatable {
         case .awaitingApproval(let progress):
             // 스테이지 안 필드가 바뀌어도 같은 대기라 이전 상태 종류만 봄
             if previous.isAwaitingApproval { return nil }
-            return DeployNotification(kind: .awaitingApproval, title: "\(name) 승인 필요", body: "\(progress.stage.name) 단계에서 기다리는 중 · \(profile)")
+            return DeployNotification(
+                kind: .awaitingApproval,
+                title: L("\(name) 승인 필요", "\(name) needs approval"),
+                body: L("\(progress.stage.name) 단계에서 기다리는 중 · \(profile)", "Waiting at \(progress.stage.name) · \(profile)")
+            )
         case .rejected(let decidedBy, _):
-            let who = decidedBy.map { "\($0) 님이 " } ?? ""
-            return DeployNotification(kind: .rejected, title: "\(name) 배포 반려", body: "\(who)반려함 · \(profile)")
+            let who = decidedBy.map { L("\($0) 님이 반려함", "Rejected by \($0)") } ?? L("반려됨", "Rejected")
+            return DeployNotification(kind: .rejected, title: L("\(name) 배포 반려", "\(name) rejected"), body: "\(who) · \(profile)")
         case .finished(.succeeded):
             let message = snapshot.execution?.revision?.message.map { "\($0) · " } ?? ""
-            return DeployNotification(kind: .succeeded, title: "\(name) 배포 완료", body: "\(message)\(profile)")
+            return DeployNotification(kind: .succeeded, title: L("\(name) 배포 완료", "\(name) deployed"), body: "\(message)\(profile)")
         case .finished(.failed):
             let failedStage = snapshot.stages.first { $0.isCurrent && $0.status == .failed }
-            let place = failedStage.map { "\($0.name) 단계에서 실패 · " } ?? ""
-            return DeployNotification(kind: .failed, title: "\(name) 배포 실패", body: "\(place)\(profile)")
+            let place = failedStage.map { L("\($0.name) 단계에서 실패 · ", "Failed at \($0.name) · ") } ?? ""
+            return DeployNotification(kind: .failed, title: L("\(name) 배포 실패", "\(name) failed"), body: "\(place)\(profile)")
         case .finished(let status):
-            return DeployNotification(kind: .stopped, title: "\(name) 배포 \(status.label)", body: profile)
+            return DeployNotification(kind: .stopped, title: L("\(name) 배포 \(status.label)", "\(name): \(status.label)"), body: profile)
         case .running, .unavailable, .neverRun:
             return nil
         }

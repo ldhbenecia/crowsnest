@@ -18,7 +18,7 @@ struct AWSError: LocalizedError, Sendable, Equatable {
     /// 서비스 에러는 "An error occurred (Code) when calling ..." 로 코드가 오고,
     /// SSO · 자격 증명 에러는 CLI 가 요청 전에 내는 거라 문장으로만 옴
     static func commandLine(profile: String?, status: Int32, errorOutput: String) -> AWSError {
-        let detail = errorOutput.nonEmptyLines.last ?? "aws 가 종료 코드 \(status) 로 끝남"
+        let detail = errorOutput.nonEmptyLines.last ?? L("aws 가 종료 코드 \(status) 로 끝남", "aws exited with status \(status)")
         if let code = errorOutput.firstMatch(of: /An error occurred \((\w+)\)/).map({ String($0.1) }) {
             return AWSError(profile: profile, kind: kind(forServiceCode: code), detail: detail)
         }
@@ -54,10 +54,16 @@ struct AWSError: LocalizedError, Sendable, Equatable {
     var errorDescription: String? {
         let profileOption = profile.map { " --profile \($0)" } ?? ""
         return switch kind {
-        case .expiredSession: "인증 만료 · 터미널에서 aws sso login\(profileOption)"
-        case .missingCredentials: "자격 증명 없음 · aws configure list\(profileOption) 로 확인"
-        case .accessDenied: "권한 없음 (AccessDenied)"
-        case .pipelineNotFound: "파이프라인이 없음 (이름 · 리전 확인)"
+        case .expiredSession: L(
+            "인증 만료 · 터미널에서 aws sso login\(profileOption)",
+            "Session expired · run aws sso login\(profileOption) in Terminal"
+        )
+        case .missingCredentials: L(
+            "자격 증명 없음 · aws configure list\(profileOption) 로 확인",
+            "No credentials · check with aws configure list\(profileOption)"
+        )
+        case .accessDenied: L("권한 없음 (AccessDenied)", "Access denied")
+        case .pipelineNotFound: L("파이프라인이 없음 (이름 · 리전 확인)", "Pipeline not found (check the name and region)")
         case .other: detail
         }
     }

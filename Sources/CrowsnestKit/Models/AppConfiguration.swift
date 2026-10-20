@@ -20,6 +20,8 @@ struct AppConfiguration: Codable, Sendable, Equatable {
     var notifyOnRejection = true
     var notificationSound = true
 
+    var language = AppLanguage.system
+
     static let fileURL = FileManager.default.homeDirectoryForCurrentUser
         .appending(path: ".config/crowsnest/config.json")
 
@@ -45,6 +47,8 @@ struct AppConfiguration: Codable, Sendable, Equatable {
         notifyOnApprovalRequest = try value(.notifyOnApprovalRequest, defaults.notifyOnApprovalRequest)
         notifyOnRejection = try value(.notifyOnRejection, defaults.notifyOnRejection)
         notificationSound = try value(.notificationSound, defaults.notificationSound)
+        // 모르는 값이면 파일 전체를 못 읽는 대신 시스템 언어로
+        language = (try? container.decodeIfPresent(AppLanguage.self, forKey: .language)) ?? defaults.language
     }
 
     func allows(_ kind: DeployNotification.Kind) -> Bool {
@@ -58,6 +62,7 @@ struct AppConfiguration: Codable, Sendable, Equatable {
     }
 
     /// 파일이 없으면 기본값으로 만들어 둠 — 어떤 키가 있는지 열어보면 바로 보이게
+    /// error 는 읽기 실패 원인 그대로 — 안내 문구는 화면 언어에 맞춰 store 가 붙임
     static func load(from url: URL = fileURL) -> (configuration: AppConfiguration, error: String?) {
         guard FileManager.default.fileExists(atPath: url.path(percentEncoded: false)) else {
             let configuration = AppConfiguration()
@@ -69,7 +74,7 @@ struct AppConfiguration: Codable, Sendable, Equatable {
             let data = try Data(contentsOf: url)
             return (try JSONDecoder().decode(AppConfiguration.self, from: data), nil)
         } catch {
-            return (AppConfiguration(), "config.json 을 못 읽어서 기본값으로 실행 중 · \(error.localizedDescription)")
+            return (AppConfiguration(), error.localizedDescription)
         }
     }
 

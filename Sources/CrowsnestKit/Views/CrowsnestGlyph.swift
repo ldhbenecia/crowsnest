@@ -103,7 +103,7 @@ public enum CrowsnestGlyph {
             return true
         }
         image.isTemplate = true
-        image.accessibilityDescription = badge ? "Crowsnest · 확인 필요" : "Crowsnest"
+        image.accessibilityDescription = "Crowsnest"
         return image
     }
 }

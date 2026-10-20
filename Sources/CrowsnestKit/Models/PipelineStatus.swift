@@ -28,14 +28,14 @@ enum PipelineStatus: Hashable, Sendable {
 
     var label: String {
         switch self {
-        case .succeeded: "성공"
-        case .inProgress: "진행 중"
-        case .failed: "실패"
-        case .stopping: "중지 중"
-        case .stopped: "중지됨"
-        case .cancelled: "취소됨"
-        case .superseded: "다음 실행으로 대체됨"
-        case .abandoned: "중단됨"
+        case .succeeded: L("성공", "Succeeded")
+        case .inProgress: L("진행 중", "In progress")
+        case .failed: L("실패", "Failed")
+        case .stopping: L("중지 중", "Stopping")
+        case .stopped: L("중지됨", "Stopped")
+        case .cancelled: L("취소됨", "Cancelled")
+        case .superseded: L("다음 실행으로 대체됨", "Superseded")
+        case .abandoned: L("중단됨", "Abandoned")
         case .unknown(let wireValue): wireValue
         }
     }

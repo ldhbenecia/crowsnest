@@ -99,6 +99,10 @@ private func makeSnapshot() throws -> PipelineSnapshot {
 }
 
 struct CodePipelineResponsesTests {
+    init() {
+        Localization.apply(.korean)
+    }
+
     @Test func 실행_요약과_스테이지를_합친다() throws {
         let snapshot = try makeSnapshot()
 

@@ -60,6 +60,20 @@ struct SettingsTests {
         ])
     }
 
+    @Test func 언어는_시스템_설정을_따르거나_직접_고른다() {
+        #expect(Localization.prefersKorean(.system, preferredLanguages: ["ko-KR", "en-US"]))
+        #expect(!Localization.prefersKorean(.system, preferredLanguages: ["en-US", "ko-KR"]))
+        #expect(!Localization.prefersKorean(.system, preferredLanguages: []))
+        #expect(Localization.prefersKorean(.korean, preferredLanguages: ["en-US"]))
+        #expect(!Localization.prefersKorean(.english, preferredLanguages: ["ko-KR"]))
+    }
+
+    @Test func 모르는_언어_값은_시스템_설정으로_읽는다() throws {
+        let configuration = try JSONDecoder().decode(AppConfiguration.self, from: Data(#"{ "language": "fr" }"#.utf8))
+
+        #expect(configuration.language == .system)
+    }
+
     @Test func 리전_형식만_받는다() {
         #expect(AWSRegion.isValid("ap-northeast-2"))
         #expect(AWSRegion.isValid("us-gov-west-1"))

@@ -34,8 +34,8 @@ struct PanelView: View {
                     .foregroundStyle(.secondary)
             }
             Spacer()
-            ToolbarIconButton(systemName: "arrow.clockwise", help: "새로고침", isBusy: store.isRefreshing, action: store.refreshNow)
-            ToolbarIconButton(systemName: "plus", help: "파이프라인 추가 · 빼기") { setPicking(true) }
+            ToolbarIconButton(systemName: "arrow.clockwise", help: L("새로고침", "Refresh"), isBusy: store.isRefreshing, action: store.refreshNow)
+            ToolbarIconButton(systemName: "plus", help: L("파이프라인 추가 · 빼기", "Add or remove pipelines")) { setPicking(true) }
             PanelMenu()
         }
         .padding(.leading, 14)
@@ -83,10 +83,14 @@ private struct HeaderSummary: View {
         let snapshots = store.orderedSnapshots
         let activeCount = snapshots.filter(\.condition.isActive).count
         HStack(spacing: 0) {
-            Text(activeCount > 0 ? "\(activeCount)개 진행 중" : "\(store.visibleSelection.count)개 지켜보는 중")
+            let watching = store.visibleSelection.count
+            Text(activeCount > 0
+                ? L("\(activeCount)개 진행 중", "\(activeCount) running")
+                : L("\(watching)개 지켜보는 중", watching == 1 ? "Watching 1 pipeline" : "Watching \(watching) pipelines"))
             if let lastRefreshedAt = store.lastRefreshedAt {
                 Text(" · ")
-                RelativeTimeText(date: lastRefreshedAt, suffix: " 갱신")
+                // 한국어는 "방금 갱신", 영어는 "updated just now" 라 앞뒤가 다름
+                RelativeTimeText(date: lastRefreshedAt, prefix: L("", "updated "), suffix: L(" 갱신", ""))
             }
         }
     }
@@ -97,11 +101,11 @@ private struct PanelMenu: View {
 
     var body: some View {
         Menu {
-            Button("설정…") { SettingsWindow.show() }
+            Button(L("설정…", "Settings…")) { SettingsWindow.show() }
                 .keyboardShortcut(",")
-            Button("Crowsnest 정보") { AboutWindow.show() }
+            Button(L("Crowsnest 정보", "About Crowsnest")) { AboutWindow.show() }
             Divider()
-            Button("Crowsnest 종료") { NSApplication.shared.terminate(nil) }
+            Button(L("Crowsnest 종료", "Quit Crowsnest")) { NSApplication.shared.terminate(nil) }
                 .keyboardShortcut("q")
         } label: {
             Image(systemName: "ellipsis")
@@ -116,7 +120,7 @@ private struct PanelMenu: View {
         // 메뉴 라벨 안에 깐 배경은 안 그려져서 바깥에 깔아 옆 버튼들과 같은 호버 모양을 냄
         .background(.quaternary.opacity(isHovered ? 1 : 0), in: RoundedRectangle(cornerRadius: 6, style: .continuous))
         .onHover { isHovered = $0 }
-        .help("더 보기")
+        .help(L("더 보기", "More"))
     }
 }
 
@@ -129,13 +133,16 @@ private struct EmptyState: View {
                 .resizable()
                 .frame(width: 36, height: 36)
                 .foregroundStyle(.tertiary)
-            Text("지켜볼 파이프라인이 없음")
+            Text(L("지켜볼 파이프라인이 없음", "No pipelines to watch"))
                 .font(.system(size: 13, weight: .medium))
-            Text("aws configure 에 등록된 프로필에서 골라 담으면\n배포가 시작 · 승인 대기 · 종료될 때 알려줌")
+            Text(L(
+                "aws configure 에 등록된 프로필에서 골라 담으면\n배포가 시작 · 승인 대기 · 종료될 때 알려줌",
+                "Pick pipelines from your aws configure profiles\nto get notified when deployments need you or finish"
+            ))
                 .font(.system(size: 11))
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
-            Button("파이프라인 고르기", action: choose)
+            Button(L("파이프라인 고르기", "Choose Pipelines"), action: choose)
                 .controlSize(.regular)
                 .buttonStyle(.borderedProminent)
                 .tint(.crowsnestAccent)
