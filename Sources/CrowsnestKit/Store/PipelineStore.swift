@@ -145,6 +145,16 @@ final class PipelineStore {
         MenuBarStatus.make(for: orderedSnapshots)
     }
 
+    /// 개발 확인용 — 알림 모양 · 아이콘을 배포를 기다리지 않고 봄
+    func postTestNotification() {
+        notifier?.post(
+            title: L("Crowsnest 테스트 알림", "Crowsnest test notification"),
+            body: L("배포가 끝나면 이렇게 알려줌", "This is how deployments will be announced"),
+            link: URL(string: "https://github.com/ldhbenecia/crowsnest")!,
+            playsSound: configuration.notificationSound
+        )
+    }
+
     /// 선택 변경 · 패널 열기 — 폴링 대기를 깨워서 바로 갱신
     func requestRefresh() {
         isRefreshRequested = true

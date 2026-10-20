@@ -27,6 +27,8 @@ if [[ -n "$(git status --porcelain 2>/dev/null)" ]]; then
   echo "경고: 커밋 안 된 변경이 있어서 버전에 -dirty 가 붙음" >&2
 fi
 BUILD_DATE="$(date '+%Y-%m-%d')"
+# CFBundleVersion 은 빌드마다 올라가야 함 — 같은 값이면 macOS 가 예전 아이콘 · 알림 정보를 계속 씀
+BUILD_NUMBER="$(git rev-list --count HEAD 2>/dev/null || echo 1)"
 
 rm -rf "$APP_BUNDLE"
 mkdir -p "$APP_BUNDLE/Contents/MacOS" "$APP_BUNDLE/Contents/Resources"
@@ -44,7 +46,7 @@ cat >"$APP_BUNDLE/Contents/Info.plist" <<PLIST
   <key>CFBundleName</key><string>$APP_NAME</string>
   <key>CFBundlePackageType</key><string>APPL</string>
   <key>CFBundleShortVersionString</key><string>$VERSION</string>
-  <key>CFBundleVersion</key><string>$VERSION</string>
+  <key>CFBundleVersion</key><string>$BUILD_NUMBER</string>
   <key>CrowsnestCommit</key><string>$COMMIT</string>
   <key>CrowsnestBuildDate</key><string>$BUILD_DATE</string>
   <key>LSMinimumSystemVersion</key><string>$MIN_SYSTEM_VERSION</string>
