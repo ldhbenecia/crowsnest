@@ -85,7 +85,7 @@ cd crowsnest
 2. Pipelines are grouped by profile. Search and tick the ones you want to watch.
 3. Click a row to expand every stage and action. Hover a row to reveal a button that opens it in the AWS console.
 4. Drag rows to reorder them, or right-click a row for **Move to Top**. When several deployments run at once, the menu bar shows the highest one.
-5. Right-click (or Control-click) the menu bar icon for **Settings…**, **About Crowsnest** and **Quit**.
+5. Right-click (or Control-click) the menu bar icon for **About Crowsnest** and **Quit**. Settings live in the panel's `···` menu.
 
 <p align="center">
   <img src="docs/images/picker.png" width="336" alt="Pipeline picker grouped by AWS profile">
