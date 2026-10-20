@@ -18,10 +18,12 @@ case "$MODE" in
 esac
 
 cd "$ROOT_DIR"
-pkill -x "$APP_NAME" >/dev/null 2>&1 || true
 
 swift build -c "$CONFIGURATION" --product "$APP_NAME"
 BUILD_BINARY="$(swift build -c "$CONFIGURATION" --show-bin-path)/$APP_NAME"
+
+# 빌드가 성공한 뒤에만 끔 — 실패하면 돌던 앱이 그대로 남음
+pkill -x "$APP_NAME" >/dev/null 2>&1 || true
 
 rm -rf "$APP_BUNDLE"
 mkdir -p "$APP_BUNDLE/Contents/MacOS"

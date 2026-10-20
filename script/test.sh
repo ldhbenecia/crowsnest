@@ -4,11 +4,11 @@ set -euo pipefail
 
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
 
-DEVELOPER_DIR="$(xcode-select -p)"
-FRAMEWORKS="$DEVELOPER_DIR/Library/Developer/Frameworks"
-LIBRARIES="$DEVELOPER_DIR/Library/Developer/usr/lib"
+TOOLCHAIN_DIR="$(xcode-select -p)"
+FRAMEWORKS="$TOOLCHAIN_DIR/Library/Developer/Frameworks"
+LIBRARIES="$TOOLCHAIN_DIR/Library/Developer/usr/lib"
 
-if [[ "$DEVELOPER_DIR" == *CommandLineTools* && -d "$FRAMEWORKS/Testing.framework" ]]; then
+if [[ "$TOOLCHAIN_DIR" == *CommandLineTools* && -d "$FRAMEWORKS/Testing.framework" ]]; then
   exec swift test \
     -Xswiftc -F"$FRAMEWORKS" \
     -Xlinker -F"$FRAMEWORKS" \
