@@ -10,7 +10,8 @@ swift build                          # 빌드
 ./script/build_and_run.sh            # .app 조립 후 실행 (--logs: 로그 스트림, --verify: 실행 확인, --install: /Applications)
 ./script/make_icon.sh                # Resources/AppIcon.icns · docs/images/icon.png 다시 그림
 ./script/screenshots.sh              # README 스크린샷(docs/images)을 예시 데이터로 다시 그림 — UI 를 바꾸면 같이 돌림
-./script/package.sh                  # release dmg (VERSION 파일 기준) — 실제 릴리스는 v* 태그 push 로 .github/workflows/release.yml 이 만듦
+./script/package.sh                  # release dmg · .sha256 (VERSION 파일 기준) — 실제 릴리스는 v* 태그 push 로 .github/workflows/release.yml 이 만듦
+./script/release_notes.sh HEAD       # 직전 태그부터의 커밋으로 만든 릴리스 노트 미리보기 — 커밋 제목이 곧 변경 내역이라 사용자 입장에서 씀
 log stream --info --predicate 'subsystem == "com.ldhbenecia.crowsnest"'
 ```
 

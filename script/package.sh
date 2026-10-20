@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# release 빌드 → dist/Crowsnest-<버전>.dmg (Applications 바로가기 포함)
-# 태그 · GitHub 릴리스는 손으로: git tag v<버전> → gh release create v<버전> dist/Crowsnest-<버전>.dmg
+# release 빌드 → dist/Crowsnest-<버전>.dmg (Applications 바로가기 포함) 와 .sha256
+# 실제 릴리스는 v<버전> 태그를 push 하면 .github/workflows/release.yml 이 이걸 돌려서 올림
 set -euo pipefail
 
 APP_NAME="Crowsnest"
@@ -24,6 +24,8 @@ ln -s /Applications "$STAGING/Applications"
 rm -f "$DMG"
 hdiutil create -volname "$APP_NAME $VERSION" -srcfolder "$STAGING" -fs APFS -format UDZO -ov "$DMG" >/dev/null
 
+# 받은 사람이 shasum -c 로 확인할 수 있게 파일 이름만 적음 · Homebrew cask 에도 이 값을 씀
+(cd "$(dirname "$DMG")" && shasum -a 256 "$(basename "$DMG")" >"$(basename "$DMG").sha256")
+
 echo "만듦: $DMG"
-# Homebrew cask 를 만들 때 쓰는 값
-echo "sha256: $(shasum -a 256 "$DMG" | cut -d' ' -f1)"
+echo "만듦: $DMG.sha256"

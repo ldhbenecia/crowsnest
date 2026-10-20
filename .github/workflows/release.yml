@@ -13,6 +13,9 @@ jobs:
     runs-on: macos-15
     steps:
       - uses: actions/checkout@v4
+        with:
+          # 릴리스 노트가 직전 태그부터의 커밋을 읽어서 히스토리 · 태그를 전부 받음
+          fetch-depth: 0
 
       - name: Check tag matches VERSION
         run: |
@@ -34,10 +37,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           DMG="dist/Crowsnest-$VERSION.dmg"
-          SHA256="$(shasum -a 256 "$DMG" | cut -d' ' -f1)"
-          gh release create "$GITHUB_REF_NAME" "$DMG" \
+          ./script/release_notes.sh "$GITHUB_REF_NAME" "$DMG" > release-notes.md
+          gh release create "$GITHUB_REF_NAME" "$DMG" "$DMG.sha256" \
             --title "Crowsnest $VERSION" \
-            --generate-notes \
-            --notes "SHA-256: \`$SHA256\`
-
-          Not notarized — on first launch allow it in System Settings → Privacy & Security → Open Anyway, or run \`xattr -dr com.apple.quarantine /Applications/Crowsnest.app\`."
+            --notes-file release-notes.md

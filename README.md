@@ -138,7 +138,9 @@ echo 0.2.0 > VERSION && git commit -am "chore: 0.2.0"
 git tag v0.2.0 && git push origin main v0.2.0
 ```
 
-Pushing a `v*` tag runs the [Release workflow](.github/workflows/release.yml): it checks the tag matches `VERSION`, runs the tests, builds `Crowsnest-0.2.0.dmg` and publishes a GitHub Release with the DMG and its SHA-256. Every push and pull request also runs [CI](.github/workflows/ci.yml) (build and tests).
+Pushing a `v*` tag runs the [Release workflow](.github/workflows/release.yml): it checks the tag matches `VERSION`, runs the tests, builds `Crowsnest-0.2.0.dmg` and publishes a GitHub Release with the DMG and `Crowsnest-0.2.0.dmg.sha256`.
+
+Release notes are generated from the conventional commits since the previous tag (`feat` → Features, `fix` → Fixes, `perf` → Performance, `refactor` → Changes; `chore`, `ci`, `docs`, `test` and `build` are left out). Preview them before tagging with `./script/release_notes.sh HEAD`. Every push and pull request also runs [CI](.github/workflows/ci.yml) (build and tests).
 
 To build the DMG locally instead, run `./script/package.sh`. Builds are ad-hoc signed and not notarized.
 
