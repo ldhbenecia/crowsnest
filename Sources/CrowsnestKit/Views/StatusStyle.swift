@@ -1,20 +1,135 @@
 import SwiftUI
 
+extension Color {
+    /// 앱 아이콘과 맞춘 강조색 — 진행 중 표시에 씀
+    static let crowsnestAccent = Color.indigo
+}
+
 extension PipelineStatus {
     var tint: Color {
         switch self {
         case .succeeded: .green
-        case .inProgress: .blue
+        case .inProgress: .crowsnestAccent
         case .failed: .red
-        case .stopping, .stopped, .cancelled: .orange
-        case .superseded, .abandoned, .unknown: .secondary
+        case .stopping, .stopped, .cancelled, .superseded, .abandoned, .unknown: .secondary
+        }
+    }
+
+    var symbolName: String {
+        switch self {
+        case .succeeded: "checkmark.circle.fill"
+        case .inProgress: "circle.dotted.circle"
+        case .failed: "xmark.circle.fill"
+        case .stopping, .stopped, .cancelled: "stop.circle.fill"
+        case .superseded, .abandoned: "arrow.uturn.right.circle.fill"
+        case .unknown: "questionmark.circle.fill"
         }
     }
 }
 
-extension Optional where Wrapped == PipelineStatus {
-    /// 실행된 적 없는 스테이지
-    var tint: Color { self?.tint ?? .gray.opacity(0.35) }
+/// 파이프라인 · 스테이지 · 액션을 어떻게 그릴지 — 막대 · 아이콘 · 글자색이 다 여기서 정해짐
+enum Appearance: Equatable {
+    /// 조회 자체가 실패함
+    case unavailable
+    /// 실행된 적 없거나 끝난 지난 실행 결과
+    case notRun
+    case running
+    case awaitingApproval
+    case rejected
+    case finished(PipelineStatus)
+
+    var tint: Color {
+        switch self {
+        case .unavailable: .yellow
+        case .notRun: Color(nsColor: .tertiaryLabelColor)
+        case .running: .crowsnestAccent
+        case .awaitingApproval: .orange
+        case .rejected: .secondary
+        case .finished(let status): status.tint
+        }
+    }
+
+    var symbolName: String {
+        switch self {
+        case .unavailable: "exclamationmark.triangle.fill"
+        case .notRun: "circle.dashed"
+        case .running: PipelineStatus.inProgress.symbolName
+        case .awaitingApproval: "hand.raised.circle.fill"
+        case .rejected: "minus.circle.fill"
+        case .finished(let status): status.symbolName
+        }
+    }
+}
+
+extension PipelineCondition {
+    var appearance: Appearance {
+        switch self {
+        case .unavailable: .unavailable
+        case .neverRun: .notRun
+        case .running: .running
+        case .awaitingApproval: .awaitingApproval
+        case .rejected: .rejected
+        case .finished(let status): .finished(status)
+        }
+    }
+}
+
+extension StageSnapshot {
+    var appearance: Appearance {
+        guard isCurrent, let status else { return .notRun }
+        if isAwaitingApproval { return .awaitingApproval }
+        if status == .failed && actions.contains(where: \.isRejected) { return .rejected }
+        return status == .inProgress ? .running : .finished(status)
+    }
+}
+
+extension ActionSnapshot {
+    var appearance: Appearance {
+        if isAwaitingApproval { return .awaitingApproval }
+        if isRejected { return .rejected }
+        guard let status else { return .notRun }
+        return status == .inProgress ? .running : .finished(status)
+    }
+}
+
+/// 파이프라인 · 스테이지 앞에 붙는 상태 아이콘 — nil 이면 아직 불러오는 중
+struct StatusIcon: View {
+    let appearance: Appearance?
+    var size: CGFloat = 14
+
+    var body: some View {
+        Group {
+            switch appearance {
+            case nil:
+                ProgressView().controlSize(.mini)
+            case .running:
+                SpinnerRing(tint: .crowsnestAccent)
+            case let appearance?:
+                Image(systemName: appearance.symbolName)
+                    .resizable()
+                    .scaledToFit()
+                    .foregroundStyle(appearance.tint)
+            }
+        }
+        .frame(width: size, height: size)
+    }
+}
+
+/// 진행 중 — 기본 ProgressView 는 회색이라 강조색으로 직접 그림
+private struct SpinnerRing: View {
+    let tint: Color
+    @State private var isRotating = false
+
+    var body: some View {
+        Circle()
+            .trim(from: 0.15, to: 1)
+            .stroke(tint, style: StrokeStyle(lineWidth: 2, lineCap: .round))
+            .padding(1.5)
+            .rotationEffect(.degrees(isRotating ? 360 : 0))
+            .onAppear {
+                withAnimation(.linear(duration: 1).repeatForever(autoreverses: false)) { isRotating = true }
+            }
+    }
 }
 
 /// 상대 시각은 데이터가 안 바뀌어도 흘러가야 해서 따로 다시 그림
@@ -44,39 +159,61 @@ struct NoticeView: View {
     let message: String
 
     var body: some View {
-        Label(message, systemImage: "exclamationmark.triangle.fill")
-            .font(.caption)
-            .foregroundStyle(.orange)
-            .textSelection(.enabled)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(8)
-            .background(.orange.opacity(0.1), in: RoundedRectangle(cornerRadius: 6))
+        Label {
+            Text(message).textSelection(.enabled)
+        } icon: {
+            Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.yellow)
+        }
+        .font(.caption)
+        .foregroundStyle(.secondary)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 8)
+        .background(.quaternary.opacity(0.5), in: RoundedRectangle(cornerRadius: 7, style: .continuous))
     }
 }
 
-struct RefreshButton: View {
-    let isBusy: Bool
+/// 헤더 · 툴바용 아이콘 버튼 — 눌리는 영역을 넉넉하게 하고 호버 때만 배경을 깔음
+struct ToolbarIconButton: View {
+    let systemName: String
     let help: String
+    var isBusy = false
     let action: () -> Void
+    @State private var isHovered = false
 
     var body: some View {
         Button(action: action) {
-            if isBusy {
-                ProgressView().controlSize(.small)
-            } else {
-                Image(systemName: "arrow.clockwise")
+            Group {
+                if isBusy {
+                    ProgressView().controlSize(.small)
+                } else {
+                    Image(systemName: systemName)
+                        .font(.system(size: 13, weight: .medium))
+                }
             }
+            .frame(width: 26, height: 26)
+            .background(.quaternary.opacity(isHovered ? 1 : 0), in: RoundedRectangle(cornerRadius: 6, style: .continuous))
+            .contentShape(Rectangle())
         }
-        .buttonStyle(.borderless)
+        .buttonStyle(.plain)
+        .foregroundStyle(.secondary)
         .disabled(isBusy)
         .help(help)
+        .onHover { isHovered = $0 }
+        .pointingHandCursor()
     }
 }
 
 extension View {
-    /// DisclosureGroup 은 기본으로 화살표만 눌려서 라벨 전체를 누를 수 있게 함
-    func togglesDisclosure(_ isExpanded: Binding<Bool>) -> some View {
-        contentShape(Rectangle())
-            .onTapGesture { withAnimation(.snappy) { isExpanded.wrappedValue.toggle() } }
+    /// 누를 수 있는 곳 — push · pop 은 호버 중에 뷰가 사라지면 짝이 안 맞아서 set 으로 바꿔 끼움
+    func pointingHandCursor() -> some View {
+        onHover { isInside in
+            (isInside ? NSCursor.pointingHand : NSCursor.arrow).set()
+        }
+    }
+
+    /// 리스트 행 호버 배경
+    func rowHoverBackground(_ isHovered: Bool) -> some View {
+        background(.quaternary.opacity(isHovered ? 0.6 : 0), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
     }
 }

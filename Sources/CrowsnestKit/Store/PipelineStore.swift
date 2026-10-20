@@ -53,8 +53,8 @@ final class PipelineStore {
         selection.compactMap { snapshots[$0] }
     }
 
-    var menuBarTitle: String? {
-        MenuBarTitle.make(for: orderedSnapshots)
+    var menuBarStatus: MenuBarStatus {
+        MenuBarStatus.make(for: orderedSnapshots)
     }
 
     /// 버튼 · 선택 변경 — 폴링 대기를 깨워서 바로 갱신
@@ -155,7 +155,7 @@ final class PipelineStore {
     private func notifyIfChanged(_ snapshot: PipelineSnapshot) {
         let condition = snapshot.condition
         // 조회 실패는 상태를 모르는 것 — 직전 상태를 남겨둬야 인증이 풀린 뒤 끝난 실행도 알림
-        if case .unavailable = condition { return }
+        if condition.isUnavailable { return }
         let previous = previousConditions.updateValue(condition, forKey: snapshot.ref)
         guard notificationsEnabled, let notification = DeployNotification.make(previous: previous, snapshot: snapshot) else { return }
         logger.info("\(snapshot.ref.id, privacy: .public) \(condition.label, privacy: .public)")

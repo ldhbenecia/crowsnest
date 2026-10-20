@@ -47,7 +47,7 @@ struct PipelineConditionTests {
     @Test func 사람이_반려한_실행은_실패가_아니라_반려로_본다() throws {
         let snapshot = try snapshot("Failed", lastAction: rejectedApproval)
 
-        #expect(snapshot.condition == .rejected(by: "reviewer@example.com"))
+        #expect(snapshot.condition == .rejected(by: "reviewer@example.com", comment: nil))
         #expect(snapshot.stages[1].actions[0].summary == nil)
     }
 

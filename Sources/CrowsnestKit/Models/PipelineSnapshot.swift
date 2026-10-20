@@ -81,7 +81,7 @@ enum PipelineCondition: Sendable, Equatable {
     /// 스테이지 사이를 넘어가는 순간엔 돌고 있는 스테이지가 없음
     case running(StageProgress?)
     case awaitingApproval(StageProgress)
-    case rejected(by: String?)
+    case rejected(by: String?, comment: String?)
     case finished(PipelineStatus)
 
     var isActive: Bool {
@@ -89,6 +89,30 @@ enum PipelineCondition: Sendable, Equatable {
         case .running, .awaitingApproval: true
         case .unavailable, .neverRun, .rejected, .finished: false
         }
+    }
+
+    var progress: StageProgress? {
+        switch self {
+        case .running(let progress): progress
+        case .awaitingApproval(let progress): progress
+        case .unavailable, .neverRun, .rejected, .finished: nil
+        }
+    }
+
+    /// 실패 · 조회 실패 — 반려는 일부러 멈춘 거라 뺌
+    var needsAttention: Bool {
+        switch self {
+        case .unavailable, .finished(.failed): true
+        default: false
+        }
+    }
+
+    var isAwaitingApproval: Bool {
+        if case .awaitingApproval = self { true } else { false }
+    }
+
+    var isUnavailable: Bool {
+        if case .unavailable = self { true } else { false }
     }
 
     var label: String {
@@ -131,7 +155,7 @@ struct PipelineSnapshot: Sendable, Equatable {
         case .failed:
             let failedActions = stages.filter(\.isCurrent).flatMap(\.actions).filter { $0.status == .failed }
             if let first = failedActions.first, failedActions.allSatisfy(\.isRejected) {
-                return .rejected(by: first.decidedBy)
+                return .rejected(by: first.decidedBy, comment: first.summary)
             }
             return .finished(.failed)
         default:

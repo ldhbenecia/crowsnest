@@ -26,16 +26,6 @@ enum PipelineStatus: Hashable, Sendable {
         }
     }
 
-    var emoji: String {
-        switch self {
-        case .succeeded: "✅"
-        case .inProgress: "🔵"
-        case .failed: "🔴"
-        case .stopping, .stopped: "⏹"
-        case .cancelled, .superseded, .abandoned, .unknown: "⚪"
-        }
-    }
-
     var label: String {
         switch self {
         case .succeeded: "성공"
@@ -55,13 +45,4 @@ extension PipelineStatus: Decodable {
     init(from decoder: any Decoder) throws {
         self.init(wireValue: try decoder.singleValueContainer().decode(String.self))
     }
-}
-
-extension PipelineStatus {
-    /// 한 번도 실행된 적 없는 스테이지 · 액션은 상태가 없음
-    static let neverRunEmoji = "⚪"
-}
-
-extension Optional where Wrapped == PipelineStatus {
-    var emoji: String { self?.emoji ?? PipelineStatus.neverRunEmoji }
 }

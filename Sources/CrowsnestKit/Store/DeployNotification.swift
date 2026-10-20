@@ -13,9 +13,9 @@ struct DeployNotification: Equatable {
         switch snapshot.condition {
         case .awaitingApproval(let progress):
             // 스테이지 안 필드가 바뀌어도 같은 대기라 이전 상태 종류만 봄
-            if case .awaitingApproval = previous { return nil }
+            if previous.isAwaitingApproval { return nil }
             return DeployNotification(title: "\(name) 승인 필요", body: "\(progress.stage.name) 단계에서 기다리는 중 · \(profile)")
-        case .rejected(let decidedBy):
+        case .rejected(let decidedBy, _):
             let who = decidedBy.map { "\($0) 님이 " } ?? ""
             return DeployNotification(title: "\(name) 배포 반려", body: "\(who)반려함 · \(profile)")
         case .finished(.succeeded):

@@ -9,20 +9,16 @@ public struct CrowsnestMenuBar: Scene {
         MenuBarExtra {
             PanelView(store: store)
         } label: {
-            MenuBarLabel(store: store)
+            MenuBarLabel(status: store.menuBarStatus)
         }
         .menuBarExtraStyle(.window)
     }
 }
 
 struct MenuBarLabel: View {
-    let store: PipelineStore
+    let status: MenuBarStatus
 
     var body: some View {
-        if let title = store.menuBarTitle {
-            Text(title)
-        } else {
-            Image(systemName: "binoculars.fill")
-        }
+        Image(nsImage: MenuBarImage.make(for: status))
     }
 }
