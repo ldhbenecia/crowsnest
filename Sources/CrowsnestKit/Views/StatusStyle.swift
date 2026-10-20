@@ -128,39 +128,11 @@ extension EnvironmentValues {
     }
 }
 
-extension View {
-    /// 패널이 보일 때만 끝없는 애니메이션을 돌림 — 닫혀 있을 때 CPU · 배터리를 안 씀
-    func repeatingAnimation(_ animation: Animation, autoreverses: Bool, isEnabled: Bool, state: Binding<Bool>) -> some View {
-        modifier(RepeatingAnimation(animation: animation.repeatForever(autoreverses: autoreverses), isEnabled: isEnabled, state: state))
-    }
-}
-
-private struct RepeatingAnimation: ViewModifier {
-    let animation: Animation
-    let isEnabled: Bool
-    @Binding var state: Bool
-    @Environment(\.isPanelVisible) private var isPanelVisible
-
-    func body(content: Content) -> some View {
-        content
-            .onAppear(perform: update)
-            .onChange(of: isEnabled && isPanelVisible) { update() }
-    }
-
-    private func update() {
-        if isEnabled && isPanelVisible {
-            withAnimation(animation) { state = true }
-        } else {
-            // 애니메이션 없이 되돌려야 반복이 끊김
-            withTransaction(Transaction(animation: nil)) { state = false }
-        }
-    }
-}
-
-/// 진행 중 — 기본 ProgressView 는 회색이라 강조색으로 직접 그림
+/// 진행 중 — 기본 ProgressView 는 회색이라 강조색으로 직접 그림. 패널이 닫혀 있으면 멈춰서 CPU · 배터리를 안 씀
 private struct SpinnerRing: View {
     let tint: Color
     @State private var isRotating = false
+    @Environment(\.isPanelVisible) private var isPanelVisible
 
     var body: some View {
         Circle()
@@ -168,7 +140,17 @@ private struct SpinnerRing: View {
             .stroke(tint, style: StrokeStyle(lineWidth: 2, lineCap: .round))
             .padding(1.5)
             .rotationEffect(.degrees(isRotating ? 360 : 0))
-            .repeatingAnimation(.linear(duration: 1), autoreverses: false, isEnabled: true, state: $isRotating)
+            .onAppear(perform: updateRotation)
+            .onChange(of: isPanelVisible) { updateRotation() }
+    }
+
+    private func updateRotation() {
+        if isPanelVisible {
+            withAnimation(.linear(duration: 1).repeatForever(autoreverses: false)) { isRotating = true }
+        } else {
+            // 애니메이션 없이 되돌려야 반복이 끊김
+            withTransaction(Transaction(animation: nil)) { isRotating = false }
+        }
     }
 }
 

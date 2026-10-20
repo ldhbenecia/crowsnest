@@ -109,7 +109,9 @@ private struct StageTrack: View {
                 let appearance = stage.appearance
                 VStack(alignment: .leading, spacing: 4) {
                     // 안 돈 칸은 아이콘용 회색보다 더 옅게 깔아서 빈 칸처럼 보이게
-                    StageSegment(tint: appearance == .notRun ? Color.primary.opacity(0.1) : appearance.tint, isPulsing: appearance == .running)
+                    Capsule()
+                        .fill(appearance == .notRun ? Color.primary.opacity(0.1) : appearance.tint)
+                        .frame(height: 4)
                     Text(stage.name)
                         .font(.system(size: 10, weight: appearance == .running ? .semibold : .regular))
                         .foregroundStyle(stage.isCurrent ? .secondary : .tertiary)
@@ -118,20 +120,6 @@ private struct StageTrack: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
         }
-    }
-}
-
-private struct StageSegment: View {
-    let tint: Color
-    let isPulsing: Bool
-    @State private var isDimmed = false
-
-    var body: some View {
-        Capsule()
-            .fill(tint)
-            .frame(height: 4)
-            .opacity(isDimmed ? 0.35 : 1)
-            .repeatingAnimation(.easeInOut(duration: 0.9), autoreverses: true, isEnabled: isPulsing, state: $isDimmed)
     }
 }
 
