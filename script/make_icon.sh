@@ -10,4 +10,7 @@ cd "$ROOT_DIR"
 swift run -c release IconRenderer "$WORK_DIR/AppIcon.iconset"
 mkdir -p Resources
 iconutil -c icns "$WORK_DIR/AppIcon.iconset" -o Resources/AppIcon.icns
-echo "만듦: Resources/AppIcon.icns"
+# GitHub 은 .icns 를 못 보여줘서 README 용 PNG 도 둠
+mkdir -p docs/images
+cp "$WORK_DIR/AppIcon.iconset/icon_128x128@2x.png" docs/images/icon.png
+echo "만듦: Resources/AppIcon.icns · docs/images/icon.png"

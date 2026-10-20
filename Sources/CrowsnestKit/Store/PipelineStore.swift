@@ -25,7 +25,8 @@ final class PipelineStore {
 
     @ObservationIgnored private let configuration: AppConfiguration
     @ObservationIgnored private let service: CodePipelineService?
-    @ObservationIgnored private let notifier: Notifier
+    /// 미리보기 스토어는 알림 권한을 묻지 않게 nil
+    @ObservationIgnored private let notifier: Notifier?
     @ObservationIgnored private var previousConditions: [PipelineRef: PipelineCondition] = [:]
     /// 이걸 취소하면 폴링 루프가 기다리지 않고 바로 다음 갱신으로 넘어감
     @ObservationIgnored private var pendingSleep: Task<Void, Never>?
@@ -51,6 +52,22 @@ final class PipelineStore {
         observeScreenAndSession()
         startPolling()
     }
+
+    #if DEBUG
+    /// 미리보기 · 스크린샷용 고정 데이터 — aws 를 안 부르고 폴링 · 알림도 안 함. 배포 빌드엔 안 들어감
+    init(previewSnapshots: [PipelineSnapshot], catalogs: [ProfileCatalog] = [], refreshedAt: Date) {
+        configuration = AppConfiguration()
+        service = nil
+        notices = []
+        notifier = nil
+        self.catalogs = catalogs
+        hasLoadedCatalogs = true
+        selection = previewSnapshots.map(\.ref)
+        snapshots = Dictionary(uniqueKeysWithValues: previewSnapshots.map { ($0.ref, $0) })
+        lastRefreshedAt = refreshedAt
+        notificationsEnabled = true
+    }
+    #endif
 
     var orderedSnapshots: [PipelineSnapshot] {
         selection.compactMap { snapshots[$0] }
@@ -197,7 +214,7 @@ final class PipelineStore {
         let previous = previousConditions.updateValue(condition, forKey: snapshot.ref)
         guard notificationsEnabled, let notification = DeployNotification.make(previous: previous, snapshot: snapshot) else { return }
         logger.info("\(snapshot.ref.id, privacy: .public) \(condition.label, privacy: .public)")
-        notifier.post(title: notification.title, body: notification.body, link: snapshot.ref.consoleURL)
+        notifier?.post(title: notification.title, body: notification.body, link: snapshot.ref.consoleURL)
     }
 
     private var pollInterval: Duration {
