@@ -11,7 +11,7 @@ private func snapshot(
         ref: PipelineRef(profile: "sample", region: "ap-northeast-1", name: name),
         execution: execution.map { ExecutionSummary(id: "exec", status: $0, startedAt: nil, updatedAt: nil, revision: nil) },
         stages: stages.enumerated().map { index, status in
-            StageSnapshot(name: "Stage\(index + 1)", status: status, belongsToLatestExecution: true, actions: [])
+            StageSnapshot(name: "Stage\(index + 1)", status: status, executionId: "exec", belongsToLatestExecution: true, actions: [])
         },
         failureReason: failureReason
     )
@@ -26,8 +26,8 @@ private func awaitingApproval(_ name: String) -> PipelineSnapshot {
         ref: PipelineRef(profile: "sample", region: "ap-northeast-1", name: name),
         execution: ExecutionSummary(id: "exec", status: .inProgress, startedAt: nil, updatedAt: nil, revision: nil),
         stages: [
-            StageSnapshot(name: "Build", status: .succeeded, belongsToLatestExecution: true, actions: []),
-            StageSnapshot(name: "Approve", status: .inProgress, belongsToLatestExecution: true, actions: [approval]),
+            StageSnapshot(name: "Build", status: .succeeded, executionId: "exec", belongsToLatestExecution: true, actions: []),
+            StageSnapshot(name: "Approve", status: .inProgress, executionId: "exec", belongsToLatestExecution: true, actions: [approval]),
         ],
         failureReason: nil
     )

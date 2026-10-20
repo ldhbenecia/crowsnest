@@ -1,4 +1,4 @@
-import Foundation
+import AppKit
 import Observation
 import os
 
@@ -31,6 +31,8 @@ final class PipelineStore {
     @ObservationIgnored private var pendingSleep: Task<Void, Never>?
     /// 갱신 도중에 들어온 요청 — 끝나자마자 한 번 더 돌게
     @ObservationIgnored private var isRefreshRequested = false
+    /// 화면이 꺼졌거나 잠겼을 때 — 아무도 안 보니 폴링을 멈춤
+    @ObservationIgnored private var isSuspended = false
 
     private init() {
         let loaded = AppConfiguration.load()
@@ -46,6 +48,7 @@ final class PipelineStore {
         selection = Preferences.selection
         notificationsEnabled = !Preferences.notificationsMuted
         notifier = Notifier()
+        observeScreenAndSession()
         startPolling()
     }
 
@@ -57,10 +60,17 @@ final class PipelineStore {
         MenuBarStatus.make(for: orderedSnapshots)
     }
 
-    /// 버튼 · 선택 변경 — 폴링 대기를 깨워서 바로 갱신
+    /// 선택 변경 · 패널 열기 — 폴링 대기를 깨워서 바로 갱신
     func requestRefresh() {
         isRefreshRequested = true
         pendingSleep?.cancel()
+    }
+
+    func refreshNow() {
+        Task {
+            await service?.forgetCredentialFailures()
+            requestRefresh()
+        }
     }
 
     /// 패널을 열 때 — 방금 갱신했으면 안 깨움
@@ -109,12 +119,39 @@ final class PipelineStore {
     private func startPolling() {
         Task {
             while true {
+                if isSuspended {
+                    await wait(for: .seconds(3600))
+                    continue
+                }
                 isRefreshRequested = false
                 await refresh()
                 guard !isRefreshRequested else { continue }
-                let sleep = Task { [interval = pollInterval] in _ = try? await Task.sleep(for: interval) }
-                pendingSleep = sleep
-                await sleep.value
+                await wait(for: pollInterval)
+            }
+        }
+    }
+
+    /// requestRefresh 가 취소하면 바로 깸 — 여유 시간을 줘서 시스템이 다른 깨어남과 묶어 처리하게 함
+    private func wait(for interval: Duration) async {
+        let sleep = Task { _ = try? await Task.sleep(for: interval, tolerance: interval / 5) }
+        pendingSleep = sleep
+        await sleep.value
+    }
+
+    /// 화면이 꺼진 동안 끝난 배포는 깨어나자마자 한 번 조회해서 그때 알림
+    private func observeScreenAndSession() {
+        let changes: [(Notification.Name, isSuspended: Bool)] = [
+            (NSWorkspace.screensDidSleepNotification, true),
+            (NSWorkspace.sessionDidResignActiveNotification, true),
+            (NSWorkspace.screensDidWakeNotification, false),
+            (NSWorkspace.sessionDidBecomeActiveNotification, false),
+        ]
+        for (name, isSuspended) in changes {
+            NSWorkspace.shared.notificationCenter.addObserver(forName: name, object: nil, queue: .main) { _ in
+                MainActor.assumeIsolated {
+                    self.isSuspended = isSuspended
+                    if !isSuspended { self.requestRefresh() }
+                }
             }
         }
     }
@@ -122,10 +159,11 @@ final class PipelineStore {
     private func refresh() async {
         guard let service else { return }
         let targets = selection
+        let previous = snapshots
         isRefreshing = true
         let fresh = await withTaskGroup(of: PipelineSnapshot.self) { group in
             for ref in targets {
-                group.addTask { await service.snapshot(of: ref) }
+                group.addTask { [previous = previous[ref]] in await service.snapshot(of: ref, previous: previous) }
             }
             // MainActor 안이라 group.reduce 는 Swift 6 동시성 검사에 걸림
             var collected: [PipelineSnapshot] = []
@@ -143,7 +181,7 @@ final class PipelineStore {
     private func apply(_ fresh: [PipelineSnapshot]) {
         for snapshot in fresh where selection.contains(snapshot.ref) {
             if let reason = snapshot.failureReason {
-                logger.error("\(snapshot.ref.id, privacy: .public) 조회 실패 · \(reason, privacy: .public)")
+                logger.error("\(snapshot.ref.id, privacy: .public) 조회 실패 · \(reason, privacy: .private)")
             }
             notifyIfChanged(snapshot)
             if snapshots[snapshot.ref] != snapshot {
@@ -170,6 +208,8 @@ final class PipelineStore {
         }
         let isAnyRunning = current.contains { $0.condition.isActive }
         let seconds = isAnyRunning ? configuration.activePollIntervalSeconds : configuration.pollIntervalSeconds
-        return .seconds(max(5, seconds))
+        // 저전력 모드면 배터리를 아끼라는 뜻이라 두 배로 늘림
+        let multiplier = ProcessInfo.processInfo.isLowPowerModeEnabled ? 2 : 1
+        return .seconds(max(5, seconds) * multiplier)
     }
 }

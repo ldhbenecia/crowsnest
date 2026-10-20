@@ -30,6 +30,8 @@ struct AWSCommandLine: Sendable {
         process.arguments = arguments
         process.environment = Self.environment
         process.standardInput = FileHandle.nullDevice
+        // 급할 것 없는 백그라운드 조회라 효율 코어로 보냄
+        process.qualityOfService = .utility
         let outputPipe = Pipe()
         let errorPipe = Pipe()
         process.standardOutput = outputPipe
@@ -43,7 +45,7 @@ struct AWSCommandLine: Sendable {
         process.waitUntilExit()
 
         guard process.terminationStatus == 0 else {
-            throw AWSCommandError(
+            throw AWSError.commandLine(
                 profile: profile,
                 status: process.terminationStatus,
                 errorOutput: String(decoding: errorData, as: UTF8.self)
@@ -59,55 +61,5 @@ struct AWSCommandLine: Sendable {
                 continuation.resume(returning: handle.readDataToEndOfFile())
             }
         }
-    }
-}
-
-struct AWSCommandError: LocalizedError, Sendable {
-    enum Kind: Equatable, Sendable {
-        case expiredSession
-        case missingCredentials
-        case accessDenied
-        case pipelineNotFound
-        case other
-    }
-
-    let profile: String?
-    let status: Int32
-    let errorOutput: String
-
-    /// 서비스 에러는 "An error occurred (Code) when calling ..." 로 코드가 오고,
-    /// SSO · 자격 증명 에러는 CLI 가 요청 전에 내는 거라 문장으로만 옴
-    var kind: Kind {
-        switch serviceErrorCode {
-        case "ExpiredToken", "ExpiredTokenException": return .expiredSession
-        case "AccessDenied", "AccessDeniedException": return .accessDenied
-        case "PipelineNotFoundException": return .pipelineNotFound
-        case .some: return .other
-        case nil: break
-        }
-        let lowered = errorOutput.lowercased()
-        if ["error loading sso token", "token has expired", "sso session associated with this profile has expired"]
-            .contains(where: { lowered.contains($0) }) {
-            return .expiredSession
-        }
-        if lowered.contains("unable to locate credentials") || (lowered.contains("config profile") && lowered.contains("could not be found")) {
-            return .missingCredentials
-        }
-        return .other
-    }
-
-    var errorDescription: String? {
-        let profileOption = profile.map { " --profile \($0)" } ?? ""
-        switch kind {
-        case .expiredSession: return "인증 만료 · 터미널에서 aws sso login\(profileOption)"
-        case .missingCredentials: return "자격 증명 없음 · aws configure list\(profileOption) 로 확인"
-        case .accessDenied: return "권한 없음 (AccessDenied)"
-        case .pipelineNotFound: return "파이프라인이 없음 (이름 · 리전 확인)"
-        case .other: return errorOutput.nonEmptyLines.last ?? "aws 가 종료 코드 \(status) 로 끝남"
-        }
-    }
-
-    private var serviceErrorCode: String? {
-        errorOutput.firstMatch(of: /An error occurred \((\w+)\)/).map { String($0.1) }
     }
 }

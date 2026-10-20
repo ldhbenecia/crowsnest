@@ -10,26 +10,43 @@ struct ProfileCatalog: Identifiable, Sendable {
     var id: String { profile }
 }
 
+/// 프로필 · 리전 · 자격 증명은 aws CLI 로 읽고, 파이프라인 조회는 API 를 직접 부름
 struct CodePipelineService: Sendable {
-    let cli: AWSCommandLine
-    let configuration: AppConfiguration
+    private let cli: AWSCommandLine
+    private let configuration: AppConfiguration
+    private let credentials: CredentialCache
+    private let client: CodePipelineClient
 
-    /// 실행 요약과 스테이지 상태를 동시에 받아 합침 — get-pipeline-state 한 번에 액션까지 다 옴
-    func snapshot(of ref: PipelineRef) async -> PipelineSnapshot {
-        async let executions = decode(
-            ListPipelineExecutionsResponse.self,
-            profile: ref.profile,
-            region: ref.region,
-            ["list-pipeline-executions", "--pipeline-name", ref.name, "--max-items", "1"]
-        )
-        async let state = decode(
-            GetPipelineStateResponse.self,
-            profile: ref.profile,
-            region: ref.region,
-            ["get-pipeline-state", "--name", ref.name]
-        )
+    init(cli: AWSCommandLine, configuration: AppConfiguration) {
+        self.cli = cli
+        self.configuration = configuration
+        credentials = CredentialCache(cli: cli)
+        client = CodePipelineClient(credentials: credentials)
+    }
+
+    /// 새로고침 버튼 — 방금 aws sso login 했을 수 있어서 자격 증명 실패 기억을 지움
+    func forgetCredentialFailures() async {
+        await credentials.forgetFailures()
+    }
+
+    /// 스테이지 상태만 먼저 받고, 직전과 달라졌을 때만 실행 요약까지 받음 — 쉬는 동안엔 요청이 하나로 줄어듦
+    func snapshot(of ref: PipelineRef, previous: PipelineSnapshot?) async -> PipelineSnapshot {
         do {
-            return try await PipelineSnapshot(ref: ref, executions: executions, state: state)
+            let state = try await client.call(
+                "GetPipelineState", GetPipelineStateRequest(name: ref.name),
+                profile: ref.profile, region: ref.region, as: GetPipelineStateResponse.self
+            )
+            if let previous, let execution = previous.execution {
+                let reused = PipelineSnapshot(ref: ref, execution: execution, state: state)
+                if reused.hasSameStageProgress(as: previous) {
+                    return reused
+                }
+            }
+            let executions = try await client.call(
+                "ListPipelineExecutions", ListPipelineExecutionsRequest(pipelineName: ref.name, maxResults: 1),
+                profile: ref.profile, region: ref.region, as: ListPipelineExecutionsResponse.self
+            )
+            return PipelineSnapshot(ref: ref, executions: executions, state: state)
         } catch {
             return .failed(ref, reason: error.localizedDescription)
         }
@@ -54,8 +71,17 @@ struct CodePipelineService: Sendable {
     private func catalog(of profile: String) async -> ProfileCatalog {
         let region = await region(of: profile)
         do {
-            let response = try await decode(ListPipelinesResponse.self, profile: profile, region: region, ["list-pipelines"])
-            return ProfileCatalog(profile: profile, region: region, pipelines: response.pipelines.map(\.name).sorted(), loadError: nil)
+            var names: [String] = []
+            var nextToken: String?
+            repeat {
+                let page = try await client.call(
+                    "ListPipelines", ListPipelinesRequest(nextToken: nextToken),
+                    profile: profile, region: region, as: ListPipelinesResponse.self
+                )
+                names += page.pipelines.map(\.name)
+                nextToken = page.nextToken
+            } while nextToken != nil
+            return ProfileCatalog(profile: profile, region: region, pipelines: names.sorted(), loadError: nil)
         } catch {
             return ProfileCatalog(profile: profile, region: region, pipelines: [], loadError: error.localizedDescription)
         }
@@ -68,18 +94,5 @@ struct CodePipelineService: Sendable {
         }
         let output = try? await cli.run(["configure", "get", "region", "--profile", profile])
         return output.flatMap { String(decoding: $0, as: UTF8.self).nonEmptyLines.first } ?? configuration.defaultRegion
-    }
-
-    private func decode<Response: Decodable & Sendable>(
-        _ type: Response.Type,
-        profile: String,
-        region: String,
-        _ arguments: [String]
-    ) async throws -> Response {
-        let output = try await cli.run(
-            ["--profile", profile, "--region", region, "--output", "json", "codepipeline"] + arguments,
-            profile: profile
-        )
-        return try JSONDecoder().decode(Response.self, from: output)
     }
 }

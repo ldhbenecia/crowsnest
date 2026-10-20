@@ -158,7 +158,7 @@ struct CodePipelineResponsesTests {
     }
 
     @Test func 만료된_SSO_토큰은_로그인_명령을_안내한다() {
-        let error = AWSCommandError(
+        let error = AWSError.commandLine(
             profile: "sample",
             status: 255,
             errorOutput: "\nError when retrieving token from sso: Token has expired and refresh failed\n"
@@ -168,7 +168,7 @@ struct CodePipelineResponsesTests {
     }
 
     @Test func 서비스_에러_코드를_문장보다_먼저_본다() {
-        let error = AWSCommandError(
+        let error = AWSError.commandLine(
             profile: "sample",
             status: 254,
             errorOutput: "\nAn error occurred (AccessDeniedException) when calling the GetPipelineState operation: User is not authorized to perform: codepipeline:GetPipelineState\n"
@@ -178,7 +178,7 @@ struct CodePipelineResponsesTests {
     }
 
     @Test func 모르는_에러는_마지막_줄을_그대로_보여준다() {
-        let error = AWSCommandError(profile: nil, status: 1, errorOutput: "first line\n  something broke  \n\n")
+        let error = AWSError.commandLine(profile: nil, status: 1, errorOutput: "first line\n  something broke  \n\n")
 
         #expect(error.kind == .other)
         #expect(error.errorDescription == "something broke")

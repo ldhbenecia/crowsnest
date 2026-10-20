@@ -10,11 +10,22 @@ enum MenuBarImage {
     private static let approvalSymbol = NSImage(systemSymbolName: "hand.raised.fill", accessibilityDescription: nil)?
         .withSymbolConfiguration(.init(pointSize: 12, weight: .semibold))
 
+    /// 폴링마다 라벨이 다시 그려져도 모양이 같으면 이미지를 새로 안 만듦
+    private static var lastActive: (pipeline: MenuBarStatus.ActivePipeline, image: NSImage)?
+
     static func make(for status: MenuBarStatus) -> NSImage {
         switch status {
-        case .idle: CrowsnestGlyph.menuBarImage
-        case .needsAttention: CrowsnestGlyph.menuBarBadgedImage
-        case .active(let pipeline): stacked(pipeline)
+        case .idle:
+            return CrowsnestGlyph.menuBarImage
+        case .needsAttention:
+            return CrowsnestGlyph.menuBarBadgedImage
+        case .active(let pipeline):
+            if let lastActive, lastActive.pipeline == pipeline {
+                return lastActive.image
+            }
+            let image = stacked(pipeline)
+            lastActive = (pipeline, image)
+            return image
         }
     }
 

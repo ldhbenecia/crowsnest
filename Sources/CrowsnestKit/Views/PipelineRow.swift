@@ -130,17 +130,8 @@ private struct StageSegment: View {
         Capsule()
             .fill(tint)
             .frame(height: 4)
-            .opacity(isPulsing && isDimmed ? 0.35 : 1)
-            .onAppear(perform: updatePulse)
-            .onChange(of: isPulsing) { updatePulse() }
-    }
-
-    private func updatePulse() {
-        guard isPulsing else {
-            withAnimation(.default) { isDimmed = false }
-            return
-        }
-        withAnimation(.easeInOut(duration: 0.9).repeatForever(autoreverses: true)) { isDimmed = true }
+            .opacity(isDimmed ? 0.35 : 1)
+            .repeatingAnimation(.easeInOut(duration: 0.9), autoreverses: true, isEnabled: isPulsing, state: $isDimmed)
     }
 }
 

@@ -1,6 +1,10 @@
 import Foundation
 
-// aws codepipeline ... --output json 응답 중 쓰는 필드만
+// CodePipeline API 요청 · 응답 중 쓰는 필드만 — aws CLI 의 --output json 과 모양이 같음
+
+struct ListPipelinesRequest: Encodable, Sendable {
+    let nextToken: String?
+}
 
 struct ListPipelinesResponse: Decodable, Sendable {
     struct Pipeline: Decodable, Sendable {
@@ -8,6 +12,16 @@ struct ListPipelinesResponse: Decodable, Sendable {
     }
 
     let pipelines: [Pipeline]
+    let nextToken: String?
+}
+
+struct ListPipelineExecutionsRequest: Encodable, Sendable {
+    let pipelineName: String
+    let maxResults: Int
+}
+
+struct GetPipelineStateRequest: Encodable, Sendable {
+    let name: String
 }
 
 struct ListPipelineExecutionsResponse: Decodable, Sendable {
@@ -95,10 +109,15 @@ extension PipelineSnapshot {
                 revision: summary.sourceRevisions?.first.map(SourceRevision.init(wire:))
             )
         }
+        self.init(ref: ref, execution: execution, state: state)
+    }
+
+    init(ref: PipelineRef, execution: ExecutionSummary?, state: GetPipelineStateResponse) {
         let stages = (state.stageStates ?? []).map { stage in
             StageSnapshot(
                 name: stage.stageName,
                 status: stage.latestExecution?.status,
+                executionId: stage.latestExecution?.pipelineExecutionId,
                 belongsToLatestExecution: execution == nil || stage.latestExecution?.pipelineExecutionId == execution?.id,
                 actions: (stage.actionStates ?? []).map { action in
                     let latest = action.latestExecution

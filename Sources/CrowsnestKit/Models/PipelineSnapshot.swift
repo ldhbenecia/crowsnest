@@ -51,6 +51,8 @@ struct ActionSnapshot: Identifiable, Sendable, Equatable {
 struct StageSnapshot: Identifiable, Sendable, Equatable {
     let name: String
     let status: PipelineStatus?
+    /// 이 스테이지가 마지막으로 돈 실행
+    let executionId: String?
     let belongsToLatestExecution: Bool
     let actions: [ActionSnapshot]
 
@@ -136,6 +138,13 @@ struct PipelineSnapshot: Sendable, Equatable {
 
     static func failed(_ ref: PipelineRef, reason: String) -> PipelineSnapshot {
         PipelineSnapshot(ref: ref, execution: nil, stages: [], failureReason: reason)
+    }
+
+    /// 스테이지마다 어느 실행이 어떤 상태인지가 같으면 실행 요약도 그대로임 — 실행 목록 조회를 건너뛰는 데 씀
+    func hasSameStageProgress(as other: PipelineSnapshot) -> Bool {
+        stages.elementsEqual(other.stages) {
+            $0.name == $1.name && $0.executionId == $1.executionId && $0.status == $1.status
+        }
     }
 
     var runningStage: StageProgress? {

@@ -3,6 +3,7 @@ import SwiftUI
 struct PanelView: View {
     @Bindable var store: PipelineStore
     @State private var isPicking = false
+    @State private var isVisible = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -15,9 +16,12 @@ struct PanelView: View {
             }
         }
         .frame(width: 400)
+        .environment(\.isPanelVisible, isVisible)
         .onAppear {
+            isVisible = true
             store.refreshIfStale()
         }
+        .onDisappear { isVisible = false }
     }
 
     private var header: some View {
@@ -30,7 +34,7 @@ struct PanelView: View {
                     .foregroundStyle(.secondary)
             }
             Spacer()
-            ToolbarIconButton(systemName: "arrow.clockwise", help: "새로고침", isBusy: store.isRefreshing, action: store.requestRefresh)
+            ToolbarIconButton(systemName: "arrow.clockwise", help: "새로고침", isBusy: store.isRefreshing, action: store.refreshNow)
             ToolbarIconButton(systemName: "plus", help: "파이프라인 추가 · 빼기") { setPicking(true) }
             PanelMenu(store: store)
         }
