@@ -133,12 +133,12 @@ The version lives in the `VERSION` file. The build writes it into `Info.plist` t
 
 ```bash
 echo 0.2.0 > VERSION && git commit -am "chore: 0.2.0"
-git tag v0.2.0
-./script/package.sh            # dist/Crowsnest-0.2.0.dmg and its sha256
-gh release create v0.2.0 dist/Crowsnest-0.2.0.dmg
+git tag v0.2.0 && git push origin main v0.2.0
 ```
 
-Builds are ad-hoc signed and not notarized.
+Pushing a `v*` tag runs the [Release workflow](.github/workflows/release.yml): it checks the tag matches `VERSION`, runs the tests, builds `Crowsnest-0.2.0.dmg` and publishes a GitHub Release with the DMG and its SHA-256. Every push and pull request also runs [CI](.github/workflows/ci.yml) (build and tests).
+
+To build the DMG locally instead, run `./script/package.sh`. Builds are ad-hoc signed and not notarized.
 
 ## License
 
