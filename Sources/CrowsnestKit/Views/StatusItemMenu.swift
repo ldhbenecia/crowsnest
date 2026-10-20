@@ -5,6 +5,9 @@ import AppKit
 @MainActor
 enum StatusItemMenu {
     private static var monitor: Any?
+    /// 메뉴가 떠 있을 때 아이콘을 누르면 그 클릭이 메뉴를 닫고 나서 아이콘에도 다시 와서 패널이 열림
+    /// 다른 메뉴바 앱처럼 메뉴만 닫히게 메뉴가 닫힌 직후 잠깐 들어오는 왼쪽 클릭은 버림
+    private static var ignoresClicksUntil = Date.distantPast
 
     static func install() {
         guard monitor == nil else { return }
@@ -15,6 +18,9 @@ enum StatusItemMenu {
                   String(describing: type(of: window)).contains("NSStatusBarWindow"),
                   let contentView = window.contentView,
                   let button = statusButton(in: contentView) else { return event }
+            if (event.type == .leftMouseDown || event.type == .leftMouseUp) && Date.now < ignoresClicksUntil {
+                return nil
+            }
             let isContextClick = event.type == .rightMouseDown || event.type == .rightMouseUp
                 || event.modifierFlags.contains(.control)
             guard isContextClick else { return event }
@@ -31,7 +37,10 @@ enum StatusItemMenu {
     private static func showMenu(in contentView: NSView, below button: NSButton) {
         let pill = PressedBackgroundView(frame: contentView.bounds.insetBy(dx: 0, dy: 3.5))
         contentView.addSubview(pill, positioned: .below, relativeTo: nil)
-        defer { pill.removeFromSuperview() }
+        defer {
+            pill.removeFromSuperview()
+            ignoresClicksUntil = Date.now.addingTimeInterval(0.35)
+        }
         // 버튼은 뒤집힌 좌표라 maxY 가 아래쪽 — 메뉴가 닫힐 때까지 돌아오지 않음
         makeMenu().popUp(positioning: nil, at: NSPoint(x: 0, y: button.bounds.maxY + 6), in: button)
     }
