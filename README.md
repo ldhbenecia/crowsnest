@@ -69,7 +69,7 @@ cd crowsnest
 
 ## Usage
 
-1. Click the anchor icon in the menu bar, then **파이프라인 고르기** (pick pipelines) or the `+` button.
+1. Click the anchor icon in the menu bar, then **Choose Pipelines** or the `+` button.
 2. Pipelines are grouped by profile. Search and tick the ones you want to watch.
 3. Click a row to expand every stage and action. Hover a row to reveal a button that opens it in the AWS console.
 
@@ -77,7 +77,7 @@ cd crowsnest
   <img src="docs/images/picker.png" width="320" alt="Pipeline picker grouped by AWS profile">
 </p>
 
-> The interface is currently in Korean.
+The interface is available in English and Korean (한국어). It follows your macOS language by default and can be changed in **Settings → General → Language**.
 
 ## Settings
 
@@ -88,8 +88,8 @@ Open **Settings** from the `···` menu in the panel header, or press ⌘, whil
   <img src="docs/images/settings-aws.png" width="400" alt="AWS settings: aws CLI path, default region and per-profile visibility and region">
 </p>
 
-- **일반 (General)** — launch at login, refresh interval while idle and while a deployment runs, slow down in Low Power Mode.
-- **알림 (Notifications)** — turn notifications on or off per event (finished, failed or stopped, approval needed, rejected) and toggle the sound.
+- **General** — language, open at login, refresh interval while idle and while a deployment runs, slow down in Low Power Mode.
+- **Notifications** — turn notifications on or off per event (succeeded, failed or stopped, approval needed, rejected) and toggle the sound.
 - **AWS** — the `aws` executable in use, default region, and for every profile whether to show it and which region to use.
 
 Everything is stored in `~/.config/crowsnest/config.json`, so you can also keep it in your dotfiles. Edits made to the file directly are picked up on the next launch.
@@ -106,15 +106,16 @@ Everything is stored in `~/.config/crowsnest/config.json`, so you can also keep 
 | `notificationsEnabled` | `true` | Master switch for notifications. |
 | `notifyOnSuccess` · `notifyOnFailure` · `notifyOnApprovalRequest` · `notifyOnRejection` | `true` | Per-event notifications. |
 | `notificationSound` | `true` | Play a sound with notifications. |
+| `language` | `"system"` | `"system"`, `"en"` or `"ko"`. |
 
 If every pipeline fails to load (offline, expired session), Crowsnest retries every 5 minutes until you press refresh.
 
 ## Troubleshooting
 
-**"인증 만료 · 터미널에서 aws sso login --profile …"** (session expired)
+**"Session expired · run aws sso login --profile …"**
 Run the suggested `aws sso login` command, then press refresh (↻) in the panel. Without refresh it retries within 5 minutes.
 
-**"aws CLI 를 못 찾음"** (aws CLI not found)
+**"aws CLI not found"**
 Install it with `brew install awscli`, or enter the output of `which aws` in **Settings → AWS**.
 
 **A profile shows no pipelines**

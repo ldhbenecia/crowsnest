@@ -32,4 +32,5 @@ log stream --info --predicate 'subsystem == "com.ldhbenecia.crowsnest"'
 - push 는 요청이 있을 때만
 - 주석은 코드로 알 수 없는 이유만 한두 줄, 음슴체
 - 변수 · 필드 이름은 축약하지 않음
+- 화면 · 알림 · 에러 문구는 `L("한국어", "English")` 로 둘 다 씀. 영어는 macOS 관례대로 버튼 · 메뉴는 Title Case. 로그는 한국어 그대로
 - 배터리: 폴링마다 프로세스를 띄우지 않음, 패널이 닫혀 있으면 애니메이션을 멈춤
