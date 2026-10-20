@@ -128,28 +128,22 @@ extension EnvironmentValues {
     }
 }
 
-/// 진행 중 — 기본 ProgressView 는 회색이라 강조색으로 직접 그림. 패널이 닫혀 있으면 멈춰서 CPU · 배터리를 안 씀
+/// 진행 중 — 기본 ProgressView 는 회색이라 강조색으로 직접 그림
+/// 반복 애니메이션은 행이 다시 그려질 때마다(갱신 · 호버 · 시각 표시) 끊겨서 각도를 지금 시각으로 매 프레임 계산함
+/// 패널이 닫혀 있으면 멈춰서 CPU · 배터리를 안 씀
 private struct SpinnerRing: View {
     let tint: Color
-    @State private var isRotating = false
     @Environment(\.isPanelVisible) private var isPanelVisible
 
     var body: some View {
-        Circle()
-            .trim(from: 0.15, to: 1)
-            .stroke(tint, style: StrokeStyle(lineWidth: 2, lineCap: .round))
-            .padding(1.5)
-            .rotationEffect(.degrees(isRotating ? 360 : 0))
-            .onAppear(perform: updateRotation)
-            .onChange(of: isPanelVisible) { updateRotation() }
-    }
-
-    private func updateRotation() {
-        if isPanelVisible {
-            withAnimation(.linear(duration: 1).repeatForever(autoreverses: false)) { isRotating = true }
-        } else {
-            // 애니메이션 없이 되돌려야 반복이 끊김
-            withTransaction(Transaction(animation: nil)) { isRotating = false }
+        TimelineView(.animation(minimumInterval: 1.0 / 60, paused: !isPanelVisible)) { context in
+            // 1초에 한 바퀴
+            let turn = context.date.timeIntervalSinceReferenceDate.truncatingRemainder(dividingBy: 1)
+            Circle()
+                .trim(from: 0.15, to: 1)
+                .stroke(tint, style: StrokeStyle(lineWidth: 2, lineCap: .round))
+                .padding(1.5)
+                .rotationEffect(.degrees(turn * 360))
         }
     }
 }
