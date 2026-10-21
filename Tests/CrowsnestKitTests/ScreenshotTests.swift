@@ -27,6 +27,15 @@ struct ScreenshotTests {
         }
     }
 
+    @Test func 인증_만료() throws {
+        let expired = PipelineSnapshot.failed(
+            PipelineRef(profile: "sandbox", region: "eu-west-1", name: "sandbox-api"),
+            error: AWSError(profile: "sandbox", kind: .expiredSession, detail: "")
+        )
+        let store = PipelineStore(previewSnapshots: Array(SampleData.snapshots(now: now).prefix(2)) + [expired], refreshedAt: now)
+        try render(PanelChrome { PanelView(store: store) }, scheme: .dark, name: "panel-sign-in")
+    }
+
     @Test func 파이프라인_선택() throws {
         let store = PipelineStore(
             previewSnapshots: Array(SampleData.snapshots(now: now).prefix(3)),

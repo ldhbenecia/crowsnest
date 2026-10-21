@@ -24,7 +24,8 @@ struct AWSCommandLine: Sendable {
     }
 
     /// profile 은 실패했을 때 안내 문구에만 씀
-    func run(_ arguments: [String], profile: String? = nil) async throws -> Data {
+    /// terminatesOnCancel 은 사람을 기다리는 명령만 — 자격 증명 조회 같은 건 호출한 쪽이 취소돼도 끝까지 받아서 캐시를 채움
+    func run(_ arguments: [String], profile: String? = nil, terminatesOnCancel: Bool = false) async throws -> Data {
         let process = Process()
         process.executableURL = executableURL
         process.arguments = arguments
@@ -38,10 +39,15 @@ struct AWSCommandLine: Sendable {
         process.standardError = errorPipe
         try process.run()
 
-        // 한쪽만 먼저 읽으면 다른 쪽 파이프 버퍼가 차서 프로세스가 멈출 수 있음
-        async let output = Self.readToEnd(outputPipe.fileHandleForReading)
-        async let errorOutput = Self.readToEnd(errorPipe.fileHandleForReading)
-        let (outputData, errorData) = await (output, errorOutput)
+        // aws sso login 처럼 브라우저를 기다리다 버려진 명령이 계속 남지 않게
+        let (outputData, errorData) = await withTaskCancellationHandler {
+            // 한쪽만 먼저 읽으면 다른 쪽 파이프 버퍼가 차서 프로세스가 멈출 수 있음
+            async let output = Self.readToEnd(outputPipe.fileHandleForReading)
+            async let errorOutput = Self.readToEnd(errorPipe.fileHandleForReading)
+            return await (output, errorOutput)
+        } onCancel: {
+            if terminatesOnCancel { process.terminate() }
+        }
         process.waitUntilExit()
 
         guard process.terminationStatus == 0 else {

@@ -52,6 +52,7 @@ struct PanelView: View {
     private var content: some View {
         VStack(alignment: .leading, spacing: 2) {
             ForEach(store.notices, id: \.self) { NoticeView(message: $0).padding(.bottom, 6) }
+            ForEach(store.profilesNeedingSignIn, id: \.self) { SignInNotice(store: store, profile: $0).padding(.bottom, 6) }
             if store.visibleSelection.isEmpty {
                 EmptyState { setPicking(true) }
             }

@@ -15,6 +15,10 @@ final class PipelineStore {
     private(set) var catalogError: String?
     private(set) var isLoadingCatalogs = false
     private(set) var isRefreshing = false
+    /// aws sso login 이 브라우저 인증을 기다리는 중인 프로필
+    private(set) var signingInProfile: String?
+    /// 프로필별 마지막 로그인 실패 — aws 가 낸 마지막 줄
+    private(set) var signInErrors: [String: String] = [:]
     private(set) var lastRefreshedAt: Date?
     private(set) var hasLoadedCatalogs = false
     private(set) var configuration: AppConfiguration
@@ -54,6 +58,7 @@ final class PipelineStore {
     /// 화면이 꺼졌거나 잠겼을 때 — 아무도 안 보니 폴링을 멈춤
     @ObservationIgnored private var isSuspended = false
     @ObservationIgnored private var isCatalogReloadPending = false
+    @ObservationIgnored private var signInTask: Task<Void, Never>?
 
     private init() {
         let loaded = AppConfiguration.load()
@@ -182,6 +187,43 @@ final class PipelineStore {
     func loadCatalogsIfNeeded() {
         guard !hasLoadedCatalogs else { return }
         reloadCatalogs()
+    }
+
+    /// 인증이 만료된 프로필 — 패널 순서대로 한 번씩
+    var profilesNeedingSignIn: [String] {
+        var seen = Set<String>()
+        return orderedSnapshots.filter(\.needsSignIn).map(\.ref.profile).filter { seen.insert($0).inserted }
+    }
+
+    /// 터미널을 열지 않고 aws sso login 을 띄움 — 브라우저 인증이 끝나면 바로 다시 조회
+    /// 같은 SSO 세션을 쓰는 다른 프로필도 이 로그인 한 번으로 같이 풀림
+    func signIn(_ profile: String) {
+        guard signingInProfile == nil, let cli else { return }
+        signingInProfile = profile
+        signInErrors[profile] = nil
+        signInTask = Task {
+            do {
+                _ = try await cli.run(["sso", "login", "--profile", profile], profile: profile, terminatesOnCancel: true)
+                logger.info("SSO 로그인 완료 · \(profile, privacy: .public)")
+                // 같은 SSO 세션을 쓰는 다른 프로필도 같이 풀렸을 수 있어서 남은 실패 문구는 다 지움
+                signInErrors.removeAll()
+                await service?.forgetCredentialFailures()
+                requestRefresh()
+            } catch {
+                // 취소는 실패가 아님. 만료 안내 문구로 바꾸면 원인이 가려져서 aws 가 낸 마지막 줄을 그대로
+                if !Task.isCancelled {
+                    signInErrors[profile] = (error as? AWSError)?.detail ?? error.localizedDescription
+                    logger.error("SSO 로그인 실패 · \(profile, privacy: .public)")
+                }
+            }
+            signingInProfile = nil
+            signInTask = nil
+        }
+    }
+
+    /// 브라우저 탭을 닫았거나 다른 계정으로 하려고 할 때 — 기다리던 aws 를 끝냄
+    func cancelSignIn() {
+        signInTask?.cancel()
     }
 
     /// 프로필 추가 창에서 기준 프로필이 SSO 인지 보려고 — aws 를 못 찾았으면 빈 값

@@ -135,9 +135,14 @@ struct PipelineSnapshot: Sendable, Equatable {
     let stages: [StageSnapshot]
     /// 조회 자체가 실패했을 때 (인증 만료 등)
     let failureReason: String?
+    /// AWS 가 알려준 실패 종류 — 네트워크 오류처럼 AWS 밖에서 난 실패면 nil
+    var failureKind: AWSError.Kind?
 
-    static func failed(_ ref: PipelineRef, reason: String) -> PipelineSnapshot {
-        PipelineSnapshot(ref: ref, execution: nil, stages: [], failureReason: reason)
+    /// 다시 로그인하면 풀리는 실패 — 패널에 로그인 버튼을 띄움
+    var needsSignIn: Bool { failureKind == .expiredSession }
+
+    static func failed(_ ref: PipelineRef, error: any Error) -> PipelineSnapshot {
+        PipelineSnapshot(ref: ref, execution: nil, stages: [], failureReason: error.localizedDescription, failureKind: (error as? AWSError)?.kind)
     }
 
     /// 스테이지마다 어느 실행이 어떤 상태인지가 같으면 실행 요약도 그대로임 — 실행 목록 조회를 건너뛰는 데 씀

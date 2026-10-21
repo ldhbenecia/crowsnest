@@ -187,12 +187,56 @@ struct NoticeView: View {
         } icon: {
             Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.yellow)
         }
-        .font(.caption)
-        .foregroundStyle(.secondary)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.horizontal, 10)
-        .padding(.vertical, 8)
-        .background(.quaternary.opacity(0.5), in: RoundedRectangle(cornerRadius: 7, style: .continuous))
+        .noticeChrome()
+    }
+}
+
+extension View {
+    /// 패널 맨 위 안내 줄 공통 모양
+    func noticeChrome() -> some View {
+        font(.caption)
+            .foregroundStyle(.secondary)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 8)
+            .background(.quaternary.opacity(0.5), in: RoundedRectangle(cornerRadius: 7, style: .continuous))
+    }
+}
+
+/// 인증이 만료된 프로필 — 누르면 aws sso login 이 브라우저를 엶
+struct SignInNotice: View {
+    let store: PipelineStore
+    let profile: String
+
+    private var isSigningIn: Bool { store.signingInProfile == profile }
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Label {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(isSigningIn
+                        ? L("\(profile) · 브라우저에서 로그인 마저 하기", "\(profile) · Finish signing in in your browser")
+                        : L("\(profile) · 인증 만료", "\(profile) · Session expired"))
+                    if let error = store.signInErrors[profile], !isSigningIn {
+                        Text(error).foregroundStyle(.red).lineLimit(2).textSelection(.enabled)
+                    }
+                }
+            } icon: {
+                Image(systemName: "person.badge.key.fill").foregroundStyle(.yellow)
+            }
+            Spacer(minLength: 0)
+            if isSigningIn {
+                ProgressView().controlSize(.small)
+                Button(L("취소", "Cancel"), action: store.cancelSignIn)
+                    .controlSize(.small)
+            } else {
+                Button(L("로그인", "Sign In")) { store.signIn(profile) }
+                    .controlSize(.small)
+                    // 한 번에 하나만 — 같은 SSO 세션이면 하나로 다 풀림
+                    .disabled(store.signingInProfile != nil)
+            }
+        }
+        .noticeChrome()
     }
 }
 

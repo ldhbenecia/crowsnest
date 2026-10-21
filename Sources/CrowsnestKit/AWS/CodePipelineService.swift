@@ -49,7 +49,7 @@ struct CodePipelineService: Sendable {
             )
             return PipelineSnapshot(ref: ref, executions: executions, state: state)
         } catch {
-            return .failed(ref, reason: error.localizedDescription)
+            return .failed(ref, error: error)
         }
     }
 
