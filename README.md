@@ -105,7 +105,7 @@ Open **Settings** from the `···` menu in the panel header, or press ⌘, whil
   <img src="docs/images/settings-aws.png" width="556" alt="AWS settings: aws CLI path, default region and per-profile visibility and region">
 </p>
 
-- **General** — language, open at login, group the panel by profile, check for updates, refresh interval while idle and while a deployment runs, slow down in Low Power Mode.
+- **General** — language, open at login, group the panel by AWS profile (role), check for updates, refresh interval while idle and while a deployment runs, slow down in Low Power Mode.
 - **Notifications** — turn notifications on or off per event (succeeded, failed or stopped, approval needed, rejected) and toggle the sound.
 - **AWS** — the `aws` executable in use, default region, and for every profile whether to show it and which region to use.
 
@@ -118,10 +118,10 @@ If you switch between several roles, add one profile per role with **+** next to
 
 The profile is written to `~/.aws/config` with `aws configure set`. To remove it, delete its section from that file.
 
-With many pipelines across roles, turn on **Group pipelines by profile in the panel** in **Settings → General** to show each profile under its own heading.
+With many pipelines across roles, turn on **Group pipelines by AWS profile (role) in the panel** in **Settings → General** to show each profile under its own heading.
 
 <p align="center">
-  <img src="docs/images/panel-grouped.png" width="456" alt="Panel grouped by profile, with a new version note at the top">
+  <img src="docs/images/panel-grouped.png" width="456" alt="Panel with pipelines grouped under each profile">
 </p>
 
 <p align="center">
@@ -133,7 +133,7 @@ Everything is stored in `~/.config/crowsnest/config.json`, so you can also keep 
 | Key | Default | Description |
 | --- | --- | --- |
 | `defaultRegion` | `"ap-northeast-1"` | Region for profiles that have none in `aws configure` (e.g. SSO-only profiles). |
-| `regionOverrides` | `{}` | Region per profile, e.g. `{"staging": "us-west-2"}`. Pipelines you already picked follow the new region. |
+| `regionOverrides` | `{}` | Region per profile, e.g. `{"billing-team": "us-west-2"}`. Pipelines you already picked follow the new region. |
 | `hiddenProfiles` | `[]` | Profiles to leave out. Their pipelines disappear from the panel and are not polled until shown again. |
 | `awsCLIPath` | — | Path to the `aws` executable. When empty, `/opt/homebrew/bin`, `/usr/local/bin` and `/usr/bin` are searched. |
 | `pollIntervalSeconds` | `30` | Refresh interval when nothing is running. |

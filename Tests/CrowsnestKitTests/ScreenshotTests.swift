@@ -39,12 +39,7 @@ struct ScreenshotTests {
     @Test func 프로필별로_묶기() throws {
         var configuration = AppConfiguration()
         configuration.groupByProfile = true
-        let store = PipelineStore(
-            previewSnapshots: SampleData.snapshots(now: now),
-            refreshedAt: now,
-            configuration: configuration,
-            availableUpdate: AppUpdate(version: "0.3.0", releaseURL: BuildInfo.releasesURL)
-        )
+        let store = PipelineStore(previewSnapshots: SampleData.snapshots(now: now), refreshedAt: now, configuration: configuration)
         try render(PanelChrome { PanelView(store: store) }, scheme: .dark, name: "panel-grouped")
     }
 
@@ -147,18 +142,18 @@ private struct PanelChrome<Content: View>: View {
 private enum SampleData {
     static func snapshots(now: Date) -> [PipelineSnapshot] {
         [
-            snapshot("storefront-api-prod", profile: "production", status: .inProgress, minutesAgo: 3, commit: ("4f1c2a9", "feat: cache product search results"), stages: [
+            snapshot("storefront-api-prod", profile: "shop-team", status: .inProgress, minutesAgo: 3, commit: ("4f1c2a9", "feat: cache product search results"), stages: [
                 stage("Source", .succeeded, [action("Source", .succeeded)]),
                 stage("Build", .inProgress, [action("Build-api", .inProgress, log: true), action("Build-worker", .succeeded)]),
                 stage("Deploy", .succeeded, current: false, [action("Deploy", .succeeded)]),
             ], now: now),
-            snapshot("admin-console-prod", profile: "production", status: .inProgress, minutesAgo: 12, commit: ("b83e017", "fix: keep filters after pagination"), stages: [
+            snapshot("admin-console-prod", profile: "shop-team", status: .inProgress, minutesAgo: 12, commit: ("b83e017", "fix: keep filters after pagination"), stages: [
                 stage("Source", .succeeded, [action("Source", .succeeded)]),
                 stage("Build", .succeeded, [action("Build", .succeeded)]),
                 stage("Approve", .inProgress, [action("Approve", .inProgress, awaiting: true)]),
                 stage("Deploy", nil, [action("Deploy", nil)]),
             ], now: now),
-            snapshot("billing-worker-staging", profile: "staging", status: .failed, minutesAgo: 41, commit: ("e02d7f4", "chore: bump runtime to node 22"), stages: [
+            snapshot("billing-worker-staging", profile: "billing-team", status: .failed, minutesAgo: 41, commit: ("e02d7f4", "chore: bump runtime to node 22"), stages: [
                 stage("Source", .succeeded, [action("Source", .succeeded)]),
                 stage("Build", .failed, [action(
                     "Build", .failed,
@@ -167,12 +162,12 @@ private enum SampleData {
                 )]),
                 stage("Deploy", .succeeded, current: false, [action("Deploy", .succeeded)]),
             ], now: now),
-            snapshot("marketing-site-prod", profile: "production", status: .failed, minutesAgo: 95, commit: ("7a9b3c1", "feat: spring campaign banner"), stages: [
+            snapshot("marketing-site-prod", profile: "shop-team", status: .failed, minutesAgo: 95, commit: ("7a9b3c1", "feat: spring campaign banner"), stages: [
                 stage("Source", .succeeded, [action("Source", .succeeded)]),
                 stage("Approve", .failed, [action("Approve", .failed, decidedBy: "jane.doe")]),
                 stage("Deploy", .succeeded, current: false, [action("Deploy", .succeeded)]),
             ], now: now),
-            snapshot("search-indexer-prod", profile: "production", status: .succeeded, minutesAgo: 60 * 5, commit: ("19d0e6b", "perf: batch index writes"), stages: [
+            snapshot("search-indexer-prod", profile: "shop-team", status: .succeeded, minutesAgo: 60 * 5, commit: ("19d0e6b", "perf: batch index writes"), stages: [
                 stage("Source", .succeeded, [action("Source", .succeeded)]),
                 stage("Build", .succeeded, [action("Build", .succeeded)]),
                 stage("Deploy", .succeeded, [action("Deploy", .succeeded)]),
@@ -182,11 +177,11 @@ private enum SampleData {
 
     static let catalogs = [
         ProfileCatalog(
-            profile: "production", region: "us-east-1",
+            profile: "shop-team", region: "us-east-1",
             pipelines: ["admin-console-prod", "marketing-site-prod", "search-indexer-prod", "storefront-api-prod"],
             loadError: nil
         ),
-        ProfileCatalog(profile: "staging", region: "us-west-2", pipelines: ["billing-worker-staging", "storefront-api-staging"], loadError: nil),
+        ProfileCatalog(profile: "billing-team", region: "us-west-2", pipelines: ["billing-worker-staging", "storefront-api-staging"], loadError: nil),
         ProfileCatalog(profile: "sandbox", region: "eu-west-1", pipelines: [], loadError: "인증 만료 · 터미널에서 aws sso login --profile sandbox"),
     ]
 

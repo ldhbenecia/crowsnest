@@ -86,11 +86,9 @@ final class PipelineStore {
         previewSnapshots: [PipelineSnapshot],
         catalogs: [ProfileCatalog] = [],
         refreshedAt: Date,
-        configuration: AppConfiguration = AppConfiguration(),
-        availableUpdate: AppUpdate? = nil
+        configuration: AppConfiguration = AppConfiguration()
     ) {
         self.configuration = configuration
-        self.availableUpdate = availableUpdate
         // 스크린샷 중에 GitHub 를 부르지 않게
         lastUpdateCheck = .distantFuture
         configurationLoadError = nil
