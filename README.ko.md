@@ -120,7 +120,7 @@ cd crowsnest
 
 `aws configure set` 으로 `~/.aws/config` 에 써짐. 지울 때는 그 파일에서 해당 섹션을 지우면 됨
 
-롤마다 파이프라인이 많으면 패널 `···` 메뉴의 **프로필별로 묶기** 를 켜서 프로필마다 소제목 아래로 모아 볼 수 있음
+롤마다 파이프라인이 많으면 **설정 → 일반** 의 **패널에서 프로필별로 묶기** 를 켜서 프로필마다 소제목 아래로 모아 볼 수 있음
 
 <p align="center">
   <img src="docs/images/panel-grouped.png" width="456" alt="프로필별로 묶인 패널과 맨 위의 새 버전 안내">
@@ -145,7 +145,7 @@ cd crowsnest
 | `notifyOnSuccess` · `notifyOnFailure` · `notifyOnApprovalRequest` · `notifyOnRejection` | `true` | 종류별 알림 |
 | `notificationSound` | `true` | 알림 소리 |
 | `language` | `"system"` | `"system"` · `"en"` · `"ko"` |
-| `groupByProfile` | `false` | 패널에서 프로필마다 소제목 아래로 묶음. 패널 `···` 메뉴에서도 켜고 끔 |
+| `groupByProfile` | `false` | 패널에서 프로필마다 소제목 아래로 묶음 |
 | `checkForUpdates` | `true` | 패널을 열 때 하루 한 번 GitHub 최신 릴리스를 확인하고 새 버전이면 알려줌. 그 요청 하나만 보냄 |
 
 모든 파이프라인 조회가 실패하면(오프라인 · 세션 만료) 새로고침을 누르기 전까지 5분마다만 다시 시도함

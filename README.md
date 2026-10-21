@@ -118,7 +118,7 @@ If you switch between several roles, add one profile per role with **+** next to
 
 The profile is written to `~/.aws/config` with `aws configure set`. To remove it, delete its section from that file.
 
-With many pipelines across roles, turn on **Group by Profile** in the panel's `···` menu to show each profile under its own heading.
+With many pipelines across roles, turn on **Group pipelines by profile in the panel** in **Settings → General** to show each profile under its own heading.
 
 <p align="center">
   <img src="docs/images/panel-grouped.png" width="456" alt="Panel grouped by profile, with a new version note at the top">
@@ -143,7 +143,7 @@ Everything is stored in `~/.config/crowsnest/config.json`, so you can also keep 
 | `notifyOnSuccess` · `notifyOnFailure` · `notifyOnApprovalRequest` · `notifyOnRejection` | `true` | Per-event notifications. |
 | `notificationSound` | `true` | Play a sound with notifications. |
 | `language` | `"system"` | `"system"`, `"en"` or `"ko"`. |
-| `groupByProfile` | `false` | Show pipelines under a heading per profile. Also in the panel's `···` menu. |
+| `groupByProfile` | `false` | Show pipelines under a heading per profile. |
 | `checkForUpdates` | `true` | Once a day, when the panel opens, check the latest GitHub release and show a note if it's newer. Only that one request is sent. |
 
 If every pipeline fails to load (offline, expired session), Crowsnest retries every 5 minutes until you press refresh.
