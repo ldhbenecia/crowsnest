@@ -109,6 +109,19 @@ Open **Settings** from the `···` menu in the panel header, or press ⌘, whil
 - **Notifications** — turn notifications on or off per event (succeeded, failed or stopped, approval needed, rejected) and toggle the sound.
 - **AWS** — the `aws` executable in use, default region, and for every profile whether to show it and which region to use.
 
+### Multiple roles
+
+If you switch between several roles, add one profile per role with **+** next to **Profiles**. Every profile is polled at the same time, so all roles show up in one panel. Pick an existing profile to base it on:
+
+- **SSO role** — reuses the base profile's SSO sign-in and only changes the account ID and role name. One `aws sso login` covers all of them.
+- **Assume role** — assumes a `role_arn` with the base profile's credentials (`source_profile`). Roles that require MFA are not supported.
+
+The profile is written to `~/.aws/config` with `aws configure set`. To remove it, delete its section from that file.
+
+<p align="center">
+  <img src="docs/images/settings-add-profile.png" width="460" alt="Add role profile sheet: base profile, role ARN and new profile name">
+</p>
+
 Everything is stored in `~/.config/crowsnest/config.json`, so you can also keep it in your dotfiles. Edits made to the file directly are picked up on the next launch.
 
 | Key | Default | Description |

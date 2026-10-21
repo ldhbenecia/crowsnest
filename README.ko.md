@@ -111,6 +111,19 @@ cd crowsnest
 - **알림** — 종류별로 켜고 끄기(성공 · 실패와 중지 · 승인 필요 · 반려), 소리
 - **AWS** — 쓰는 `aws` 실행 파일, 기본 리전, 프로필마다 보일지와 쓸 리전
 
+### 롤 여러 개 쓰기
+
+롤을 번갈아 쓴다면 **프로필** 옆 **+** 로 롤마다 프로필을 하나씩 추가하면 됨. 프로필은 모두 같이 조회해서 롤 전부가 패널 하나에 보임. 이미 있는 프로필을 기준으로 고름
+
+- **SSO 롤** — 기준 프로필의 SSO 로그인을 그대로 쓰고 계정 ID · 롤 이름만 바꿈. `aws sso login` 한 번이면 다 풀림
+- **롤 전환** — 기준 프로필의 자격 증명으로 `role_arn` 을 assume 함(`source_profile`). MFA 가 필요한 롤은 못 씀
+
+`aws configure set` 으로 `~/.aws/config` 에 써짐. 지울 때는 그 파일에서 해당 섹션을 지우면 됨
+
+<p align="center">
+  <img src="docs/images/settings-add-profile.png" width="460" alt="롤 프로필 추가 창: 기준 프로필, 롤 ARN, 새 프로필 이름">
+</p>
+
 모든 설정은 `~/.config/crowsnest/config.json` 에 저장돼서 dotfiles 로 관리해도 됨. 파일을 직접 고치면 다음 실행 때 반영됨
 
 | 키 | 기본값 | 설명 |
