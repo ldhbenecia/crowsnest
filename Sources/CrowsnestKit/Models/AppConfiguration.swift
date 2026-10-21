@@ -21,6 +21,10 @@ struct AppConfiguration: Codable, Sendable, Equatable {
     var notificationSound = true
 
     var language = AppLanguage.system
+    /// 패널에서 파이프라인을 프로필 소제목 아래로 묶음 — 롤을 여러 개 쓸 때 섞여 보이지 않게
+    var groupByProfile = false
+    /// 하루 한 번 GitHub 최신 릴리스를 봄
+    var checkForUpdates = true
 
     static let fileURL = FileManager.default.homeDirectoryForCurrentUser
         .appending(path: ".config/crowsnest/config.json")
@@ -47,6 +51,8 @@ struct AppConfiguration: Codable, Sendable, Equatable {
         notifyOnApprovalRequest = try value(.notifyOnApprovalRequest, defaults.notifyOnApprovalRequest)
         notifyOnRejection = try value(.notifyOnRejection, defaults.notifyOnRejection)
         notificationSound = try value(.notificationSound, defaults.notificationSound)
+        groupByProfile = try value(.groupByProfile, defaults.groupByProfile)
+        checkForUpdates = try value(.checkForUpdates, defaults.checkForUpdates)
         // 모르는 값이면 파일 전체를 못 읽는 대신 시스템 언어로
         language = (try? container.decodeIfPresent(AppLanguage.self, forKey: .language)) ?? defaults.language
     }
@@ -96,6 +102,14 @@ enum Preferences {
             return (try? JSONDecoder().decode([PipelineRef].self, from: data)) ?? []
         }
         set { UserDefaults.standard.set(try? JSONEncoder().encode(newValue), forKey: selectionKey) }
+    }
+
+    private static let dismissedUpdateKey = "dismissedUpdateVersion"
+
+    /// 패널에서 닫은 새 버전 안내 — 그보다 새 버전이 나와야 다시 띄움
+    static var dismissedUpdateVersion: String? {
+        get { UserDefaults.standard.string(forKey: dismissedUpdateKey) }
+        set { UserDefaults.standard.set(newValue, forKey: dismissedUpdateKey) }
     }
 
     /// 예전 버전은 알림 끄기를 여기 뒀음 — 한 번 읽어서 config.json 으로 옮기고 지움

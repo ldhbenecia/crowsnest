@@ -36,6 +36,18 @@ struct ScreenshotTests {
         try render(PanelChrome { PanelView(store: store) }, scheme: .dark, name: "panel-sign-in")
     }
 
+    @Test func 프로필별로_묶기() throws {
+        var configuration = AppConfiguration()
+        configuration.groupByProfile = true
+        let store = PipelineStore(
+            previewSnapshots: SampleData.snapshots(now: now),
+            refreshedAt: now,
+            configuration: configuration,
+            availableUpdate: AppUpdate(version: "0.3.0", releaseURL: BuildInfo.releasesURL)
+        )
+        try render(PanelChrome { PanelView(store: store) }, scheme: .dark, name: "panel-grouped")
+    }
+
     @Test func 파이프라인_선택() throws {
         let store = PipelineStore(
             previewSnapshots: Array(SampleData.snapshots(now: now).prefix(3)),

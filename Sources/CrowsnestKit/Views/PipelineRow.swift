@@ -76,13 +76,16 @@ struct PipelineRow: View {
 private struct RevisionLine: View {
     let profile: String
     let execution: ExecutionSummary
+    @Environment(\.showsProfileTag) private var showsProfileTag
 
     var body: some View {
         HStack(spacing: 6) {
-            Text(profile)
-                .padding(.horizontal, 5)
-                .padding(.vertical, 1)
-                .background(.quaternary.opacity(0.7), in: RoundedRectangle(cornerRadius: 4, style: .continuous))
+            if showsProfileTag {
+                Text(profile)
+                    .padding(.horizontal, 5)
+                    .padding(.vertical, 1)
+                    .background(.quaternary.opacity(0.7), in: RoundedRectangle(cornerRadius: 4, style: .continuous))
+            }
             if let shortId = execution.revision?.shortId {
                 Text(shortId).monospaced()
             }

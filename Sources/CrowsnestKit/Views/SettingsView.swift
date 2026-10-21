@@ -82,7 +82,7 @@ private extension Array {
 
 /// 설정 값 하나를 store 에 바로 쓰는 바인딩
 @MainActor
-private func setting<Value>(_ store: PipelineStore, _ keyPath: WritableKeyPath<AppConfiguration, Value>) -> Binding<Value> {
+func setting<Value>(_ store: PipelineStore, _ keyPath: WritableKeyPath<AppConfiguration, Value>) -> Binding<Value> {
     Binding(
         get: { store.configuration[keyPath: keyPath] },
         set: { newValue in store.updateConfiguration { $0[keyPath: keyPath] = newValue } }
@@ -118,6 +118,17 @@ struct GeneralSettings: View {
                     Text(errorMessage)
                         .foregroundStyle(.secondary)
                 }
+                Toggle(L("패널에서 프로필별로 묶기", "Group pipelines by profile in the panel"), isOn: setting(store, \.groupByProfile))
+            }
+
+            Section {
+                Toggle(L("새 버전 확인", "Check for updates"), isOn: setting(store, \.checkForUpdates))
+            } footer: {
+                Text(L(
+                    "패널을 열 때 하루 한 번 GitHub 최신 릴리스만 확인하고, 새 버전이 있으면 패널 위에 알려줌",
+                    "Once a day when you open the panel, checks the latest GitHub release and shows a note at the top if it's newer"
+                ))
+                    .foregroundStyle(.secondary)
             }
 
             Section {

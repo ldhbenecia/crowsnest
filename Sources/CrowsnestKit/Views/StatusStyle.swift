@@ -126,6 +126,16 @@ extension EnvironmentValues {
         get { self[PanelVisibilityKey.self] }
         set { self[PanelVisibilityKey.self] = newValue }
     }
+
+    /// 프로필별로 묶어 보면 소제목에 이미 있어서 행마다 붙은 프로필 표시는 뺌
+    var showsProfileTag: Bool {
+        get { self[ProfileTagVisibilityKey.self] }
+        set { self[ProfileTagVisibilityKey.self] = newValue }
+    }
+}
+
+private struct ProfileTagVisibilityKey: EnvironmentKey {
+    static let defaultValue = true
 }
 
 /// 진행 중 — 기본 ProgressView 는 회색이라 강조색으로 직접 그림
@@ -235,6 +245,31 @@ struct SignInNotice: View {
                     // 한 번에 하나만 — 같은 SSO 세션이면 하나로 다 풀림
                     .disabled(store.signingInProfile != nil)
             }
+        }
+        .noticeChrome()
+    }
+}
+
+/// GitHub 에 새 버전이 올라왔을 때 — 받기는 릴리스 페이지에서 직접
+struct UpdateNotice: View {
+    let store: PipelineStore
+    let update: AppUpdate
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Label {
+                Text(L("새 버전 \(update.version) 나옴", "Crowsnest \(update.version) is available"))
+            } icon: {
+                Image(systemName: "arrow.down.circle.fill").foregroundStyle(Color.crowsnestAccent)
+            }
+            Spacer(minLength: 0)
+            Button(L("받기", "Download")) { NSWorkspace.shared.open(update.releaseURL) }
+                .controlSize(.small)
+            Button(action: store.dismissUpdate) {
+                Image(systemName: "xmark").font(.system(size: 9, weight: .semibold))
+            }
+            .buttonStyle(.plain)
+            .help(L("이 버전은 다시 알리지 않음", "Don't remind me about this version"))
         }
         .noticeChrome()
     }

@@ -38,7 +38,7 @@ struct PanelView: View {
             Spacer()
             ToolbarIconButton(systemName: "arrow.clockwise", help: L("새로고침", "Refresh"), isBusy: store.isRefreshing, action: store.refreshNow)
             ToolbarIconButton(systemName: "plus", help: L("파이프라인 추가 · 빼기", "Add or remove pipelines")) { setPicking(true) }
-            PanelMenu()
+            PanelMenu(store: store)
         }
         .padding(.leading, 14)
         .padding(.trailing, 8)
@@ -53,28 +53,49 @@ struct PanelView: View {
         VStack(alignment: .leading, spacing: 2) {
             ForEach(store.notices, id: \.self) { NoticeView(message: $0).padding(.bottom, 6) }
             ForEach(store.profilesNeedingSignIn, id: \.self) { SignInNotice(store: store, profile: $0).padding(.bottom, 6) }
-            if store.visibleSelection.isEmpty {
+            if let update = store.availableUpdate {
+                UpdateNotice(store: store, update: update).padding(.bottom, 6)
+            }
+            let selection = store.visibleSelection
+            if selection.isEmpty {
                 EmptyState { setPicking(true) }
             }
-            ForEach(store.visibleSelection) { ref in
-                PipelineRow(ref: ref, snapshot: store.snapshots[ref])
-                    .onDrag {
-                        draggingRef = ref
-                        return NSItemProvider(object: ref.id as NSString)
-                    }
-                    .onDrop(of: [.plainText], delegate: RowReorderDelegate(target: ref, store: store, draggingRef: $draggingRef))
-                    .contextMenu {
-                        Button(L("맨 위로", "Move to Top")) { withAnimation(.snappy) { store.moveToTop(ref) } }
-                            .disabled(store.visibleSelection.first == ref)
-                        Button(L("맨 아래로", "Move to Bottom")) { withAnimation(.snappy) { store.moveToBottom(ref) } }
-                            .disabled(store.visibleSelection.last == ref)
-                        Divider()
-                        Button(L("AWS 콘솔에서 열기", "Open in AWS Console")) { NSWorkspace.shared.open(ref.consoleURL) }
-                        Button(L("지켜보기 그만", "Stop Watching")) { withAnimation(.snappy) { store.toggle(ref) } }
-                    }
+            let groups = store.configuration.groupByProfile ? PipelineStore.grouped(selection) : []
+            // 프로필이 하나뿐이면 소제목이 군더더기라 묶지 않음
+            if groups.count > 1 {
+                ForEach(groups, id: \.profile) { group in
+                    Text(group.profile)
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(.secondary)
+                        .padding(.horizontal, 10)
+                        .padding(.top, group.profile == groups.first?.profile ? 2 : 10)
+                        .padding(.bottom, 2)
+                    ForEach(group.refs, content: row)
+                }
+                .environment(\.showsProfileTag, false)
+            } else {
+                ForEach(selection, content: row)
             }
         }
         .padding(6)
+    }
+
+    private func row(_ ref: PipelineRef) -> some View {
+        PipelineRow(ref: ref, snapshot: store.snapshots[ref])
+            .onDrag {
+                draggingRef = ref
+                return NSItemProvider(object: ref.id as NSString)
+            }
+            .onDrop(of: [.plainText], delegate: RowReorderDelegate(target: ref, store: store, draggingRef: $draggingRef))
+            .contextMenu {
+                Button(L("맨 위로", "Move to Top")) { withAnimation(.snappy) { store.moveToTop(ref) } }
+                    .disabled(store.visibleSelection.first == ref)
+                Button(L("맨 아래로", "Move to Bottom")) { withAnimation(.snappy) { store.moveToBottom(ref) } }
+                    .disabled(store.visibleSelection.last == ref)
+                Divider()
+                Button(L("AWS 콘솔에서 열기", "Open in AWS Console")) { NSWorkspace.shared.open(ref.consoleURL) }
+                Button(L("지켜보기 그만", "Stop Watching")) { withAnimation(.snappy) { store.toggle(ref) } }
+            }
     }
 }
 
@@ -114,10 +135,13 @@ private struct HeaderSummary: View {
 }
 
 private struct PanelMenu: View {
+    let store: PipelineStore
     @State private var isHovered = false
 
     var body: some View {
         Menu {
+            Toggle(L("프로필별로 묶기", "Group by Profile"), isOn: setting(store, \.groupByProfile))
+            Divider()
             Button(L("설정…", "Settings…")) { SettingsWindow.show() }
                 .keyboardShortcut(",")
             Button(L("Crowsnest 정보", "About Crowsnest")) { AboutWindow.show() }
@@ -178,6 +202,8 @@ private struct RowReorderDelegate: DropDelegate {
 
     func dropEntered(info: DropInfo) {
         guard let draggingRef, draggingRef != target else { return }
+        // 묶어 볼 때 다른 프로필 행으로 옮기면 행은 제 프로필 아래로 돌아가고 묶음 순서만 바뀌어 보임
+        if store.configuration.groupByProfile, draggingRef.profile != target.profile { return }
         withAnimation(.snappy) { store.move(draggingRef, to: target) }
     }
 

@@ -19,6 +19,8 @@ final class PipelineStore {
     private(set) var signingInProfile: String?
     /// 프로필별 마지막 로그인 실패 — aws 가 낸 마지막 줄
     private(set) var signInErrors: [String: String] = [:]
+    /// 패널에서 닫은 버전이면 nil
+    private(set) var availableUpdate: AppUpdate?
     private(set) var lastRefreshedAt: Date?
     private(set) var hasLoadedCatalogs = false
     private(set) var configuration: AppConfiguration
@@ -59,6 +61,7 @@ final class PipelineStore {
     @ObservationIgnored private var isSuspended = false
     @ObservationIgnored private var isCatalogReloadPending = false
     @ObservationIgnored private var signInTask: Task<Void, Never>?
+    @ObservationIgnored private var lastUpdateCheck: Date?
 
     private init() {
         let loaded = AppConfiguration.load()
@@ -79,8 +82,17 @@ final class PipelineStore {
 
     #if DEBUG
     /// 미리보기 · 스크린샷용 고정 데이터 — aws 를 안 부르고 폴링 · 알림도 안 함. 배포 빌드엔 안 들어감
-    init(previewSnapshots: [PipelineSnapshot], catalogs: [ProfileCatalog] = [], refreshedAt: Date) {
-        configuration = AppConfiguration()
+    init(
+        previewSnapshots: [PipelineSnapshot],
+        catalogs: [ProfileCatalog] = [],
+        refreshedAt: Date,
+        configuration: AppConfiguration = AppConfiguration(),
+        availableUpdate: AppUpdate? = nil
+    ) {
+        self.configuration = configuration
+        self.availableUpdate = availableUpdate
+        // 스크린샷 중에 GitHub 를 부르지 않게
+        lastUpdateCheck = .distantFuture
         configurationLoadError = nil
         service = nil
         awsCLIPath = "/opt/homebrew/bin/aws"
@@ -114,6 +126,11 @@ final class PipelineStore {
         }
         if updated.language != previous.language {
             Localization.apply(updated.language)
+        }
+        if updated.checkForUpdates != previous.checkForUpdates {
+            // 끄면 떠 있던 안내도 치우고, 켜면 다음에 패널을 열 때 바로 확인
+            availableUpdate = nil
+            lastUpdateCheck = nil
         }
         let pathChanged = updated.awsCLIPath != previous.awsCLIPath
         let regionsChanged = updated.defaultRegion != previous.defaultRegion || updated.regionOverrides != previous.regionOverrides
@@ -181,6 +198,42 @@ final class PipelineStore {
         if !isFresh {
             requestRefresh()
         }
+        checkForUpdateIfDue()
+    }
+
+    /// 안내는 패널에만 뜨니 패널을 열 때만, 하루 한 번 — 따로 깨어나는 타이머를 두지 않음
+    private func checkForUpdateIfDue() {
+        guard configuration.checkForUpdates, let current = BuildInfo.current.version else { return }
+        if let lastUpdateCheck, Date.now.timeIntervalSince(lastUpdateCheck) < 24 * 60 * 60 { return }
+        lastUpdateCheck = .now
+        Task {
+            do {
+                let update = try await UpdateChecker.update(newerThan: current)
+                availableUpdate = update?.version == Preferences.dismissedUpdateVersion ? nil : update
+            } catch {
+                // 깨어난 직후처럼 잠깐 오프라인일 수 있어서 하루가 아니라 한 시간 뒤에 다시. 안내할 일은 아니라 로그만
+                lastUpdateCheck = Date.now.addingTimeInterval(-23 * 60 * 60)
+                logger.info("새 버전 확인 실패 · \(error.localizedDescription, privacy: .public)")
+            }
+        }
+    }
+
+    func dismissUpdate() {
+        Preferences.dismissedUpdateVersion = availableUpdate?.version
+        availableUpdate = nil
+    }
+
+    /// 패널에서 프로필 소제목 아래로 묶을 때 — 프로필은 처음 나온 순서, 안에서는 고른 순서 그대로
+    nonisolated static func grouped(_ selection: [PipelineRef]) -> [(profile: String, refs: [PipelineRef])] {
+        var groups: [(profile: String, refs: [PipelineRef])] = []
+        for ref in selection {
+            if let index = groups.firstIndex(where: { $0.profile == ref.profile }) {
+                groups[index].refs.append(ref)
+            } else {
+                groups.append((ref.profile, [ref]))
+            }
+        }
+        return groups
     }
 
     /// 프로필이 많으면 aws 프로세스를 여러 개 띄워야 해서 선택 UI 를 처음 펼칠 때까지 미룸
