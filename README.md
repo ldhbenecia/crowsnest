@@ -105,7 +105,7 @@ Open **Settings** from the `···` menu in the panel header, or press ⌘, whil
   <img src="docs/images/settings-aws.png" width="556" alt="AWS settings: aws CLI path, default region and per-profile visibility and region">
 </p>
 
-- **General** — language, open at login, refresh interval while idle and while a deployment runs, slow down in Low Power Mode.
+- **General** — language, open at login, group the panel by profile, check for updates, refresh interval while idle and while a deployment runs, slow down in Low Power Mode.
 - **Notifications** — turn notifications on or off per event (succeeded, failed or stopped, approval needed, rejected) and toggle the sound.
 - **AWS** — the `aws` executable in use, default region, and for every profile whether to show it and which region to use.
 
@@ -117,6 +117,12 @@ If you switch between several roles, add one profile per role with **+** next to
 - **Assume role** — assumes a `role_arn` with the base profile's credentials (`source_profile`). Roles that require MFA are not supported.
 
 The profile is written to `~/.aws/config` with `aws configure set`. To remove it, delete its section from that file.
+
+With many pipelines across roles, turn on **Group by Profile** in the panel's `···` menu to show each profile under its own heading.
+
+<p align="center">
+  <img src="docs/images/panel-grouped.png" width="456" alt="Panel grouped by profile, with a new version note at the top">
+</p>
 
 <p align="center">
   <img src="docs/images/settings-add-profile.png" width="460" alt="Add role profile sheet: base profile, role ARN and new profile name">
@@ -137,6 +143,8 @@ Everything is stored in `~/.config/crowsnest/config.json`, so you can also keep 
 | `notifyOnSuccess` · `notifyOnFailure` · `notifyOnApprovalRequest` · `notifyOnRejection` | `true` | Per-event notifications. |
 | `notificationSound` | `true` | Play a sound with notifications. |
 | `language` | `"system"` | `"system"`, `"en"` or `"ko"`. |
+| `groupByProfile` | `false` | Show pipelines under a heading per profile. Also in the panel's `···` menu. |
+| `checkForUpdates` | `true` | Once a day, when the panel opens, check the latest GitHub release and show a note if it's newer. Only that one request is sent. |
 
 If every pipeline fails to load (offline, expired session), Crowsnest retries every 5 minutes until you press refresh.
 

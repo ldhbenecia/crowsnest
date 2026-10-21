@@ -107,7 +107,7 @@ cd crowsnest
   <img src="docs/images/settings-aws.png" width="556" alt="AWS 설정: aws CLI 경로, 기본 리전, 프로필별 보이기와 리전">
 </p>
 
-- **일반** — 언어, 로그인할 때 자동 실행, 쉴 때 · 배포 중일 때 갱신 주기, 저전력 모드에서 천천히
+- **일반** — 언어, 로그인할 때 자동 실행, 패널을 프로필별로 묶기, 새 버전 확인, 쉴 때 · 배포 중일 때 갱신 주기, 저전력 모드에서 천천히
 - **알림** — 종류별로 켜고 끄기(성공 · 실패와 중지 · 승인 필요 · 반려), 소리
 - **AWS** — 쓰는 `aws` 실행 파일, 기본 리전, 프로필마다 보일지와 쓸 리전
 
@@ -119,6 +119,12 @@ cd crowsnest
 - **롤 전환** — 기준 프로필의 자격 증명으로 `role_arn` 을 assume 함(`source_profile`). MFA 가 필요한 롤은 못 씀
 
 `aws configure set` 으로 `~/.aws/config` 에 써짐. 지울 때는 그 파일에서 해당 섹션을 지우면 됨
+
+롤마다 파이프라인이 많으면 패널 `···` 메뉴의 **프로필별로 묶기** 를 켜서 프로필마다 소제목 아래로 모아 볼 수 있음
+
+<p align="center">
+  <img src="docs/images/panel-grouped.png" width="456" alt="프로필별로 묶인 패널과 맨 위의 새 버전 안내">
+</p>
 
 <p align="center">
   <img src="docs/images/settings-add-profile.png" width="460" alt="롤 프로필 추가 창: 기준 프로필, 롤 ARN, 새 프로필 이름">
@@ -139,6 +145,8 @@ cd crowsnest
 | `notifyOnSuccess` · `notifyOnFailure` · `notifyOnApprovalRequest` · `notifyOnRejection` | `true` | 종류별 알림 |
 | `notificationSound` | `true` | 알림 소리 |
 | `language` | `"system"` | `"system"` · `"en"` · `"ko"` |
+| `groupByProfile` | `false` | 패널에서 프로필마다 소제목 아래로 묶음. 패널 `···` 메뉴에서도 켜고 끔 |
+| `checkForUpdates` | `true` | 패널을 열 때 하루 한 번 GitHub 최신 릴리스를 확인하고 새 버전이면 알려줌. 그 요청 하나만 보냄 |
 
 모든 파이프라인 조회가 실패하면(오프라인 · 세션 만료) 새로고침을 누르기 전까지 5분마다만 다시 시도함
 
