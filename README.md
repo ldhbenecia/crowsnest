@@ -143,7 +143,11 @@ If every pipeline fails to load (offline, expired session), Crowsnest retries ev
 ## Troubleshooting
 
 **"Session expired · run aws sso login --profile …"**
-Run the suggested `aws sso login` command, then press refresh (↻) in the panel. Without refresh it retries within 5 minutes.
+Press **Sign In** at the top of the panel. It runs `aws sso login` for that profile, opens the browser, and refreshes once you finish signing in there. Profiles that share the same SSO session are all unlocked by one sign-in. You can also run the command in Terminal and press refresh (↻).
+
+<p align="center">
+  <img src="docs/images/panel-sign-in.png" width="456" alt="Panel with a Sign In button for a profile whose session expired">
+</p>
 
 **"aws CLI not found"**
 Install it with `brew install awscli`, or enter the output of `which aws` in **Settings → AWS**.

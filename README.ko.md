@@ -145,7 +145,11 @@ cd crowsnest
 ## 문제 해결
 
 **"인증 만료 · 터미널에서 aws sso login --profile …"**
-안내대로 `aws sso login` 을 실행하고 패널의 새로고침(↻)을 누르면 바로 다시 조회함. 안 누르면 5분 안에 다시 시도
+패널 맨 위의 **로그인** 을 누르면 그 프로필로 `aws sso login` 을 띄워 브라우저가 열리고, 브라우저에서 로그인을 마치면 바로 다시 조회함. 같은 SSO 세션을 쓰는 프로필은 한 번에 다 풀림. 터미널에서 직접 실행하고 새로고침(↻)을 눌러도 됨
+
+<p align="center">
+  <img src="docs/images/panel-sign-in.png" width="456" alt="인증이 만료된 프로필에 로그인 버튼이 뜬 패널">
+</p>
 
 **"aws CLI 를 못 찾음"**
 `brew install awscli` 로 설치하거나 `which aws` 결과를 **설정 → AWS** 에서 지정
