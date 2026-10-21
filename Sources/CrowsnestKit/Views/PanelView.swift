@@ -38,7 +38,7 @@ struct PanelView: View {
             Spacer()
             ToolbarIconButton(systemName: "arrow.clockwise", help: L("새로고침", "Refresh"), isBusy: store.isRefreshing, action: store.refreshNow)
             ToolbarIconButton(systemName: "plus", help: L("파이프라인 추가 · 빼기", "Add or remove pipelines")) { setPicking(true) }
-            PanelMenu(store: store)
+            PanelMenu()
         }
         .padding(.leading, 14)
         .padding(.trailing, 8)
@@ -60,9 +60,9 @@ struct PanelView: View {
             if selection.isEmpty {
                 EmptyState { setPicking(true) }
             }
+            // 프로필이 하나여도 소제목을 띄움 — 안 띄우면 켜도 아무 변화가 없어 보임
             let groups = store.configuration.groupByProfile ? PipelineStore.grouped(selection) : []
-            // 프로필이 하나뿐이면 소제목이 군더더기라 묶지 않음
-            if groups.count > 1 {
+            if !groups.isEmpty {
                 ForEach(groups, id: \.profile) { group in
                     Text(group.profile)
                         .font(.system(size: 11, weight: .semibold))
@@ -135,13 +135,10 @@ private struct HeaderSummary: View {
 }
 
 private struct PanelMenu: View {
-    let store: PipelineStore
     @State private var isHovered = false
 
     var body: some View {
         Menu {
-            Toggle(L("프로필별로 묶기", "Group by Profile"), isOn: setting(store, \.groupByProfile))
-            Divider()
             Button(L("설정…", "Settings…")) { SettingsWindow.show() }
                 .keyboardShortcut(",")
             Button(L("Crowsnest 정보", "About Crowsnest")) { AboutWindow.show() }

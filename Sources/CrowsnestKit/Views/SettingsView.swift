@@ -82,7 +82,7 @@ private extension Array {
 
 /// 설정 값 하나를 store 에 바로 쓰는 바인딩
 @MainActor
-func setting<Value>(_ store: PipelineStore, _ keyPath: WritableKeyPath<AppConfiguration, Value>) -> Binding<Value> {
+private func setting<Value>(_ store: PipelineStore, _ keyPath: WritableKeyPath<AppConfiguration, Value>) -> Binding<Value> {
     Binding(
         get: { store.configuration[keyPath: keyPath] },
         set: { newValue in store.updateConfiguration { $0[keyPath: keyPath] = newValue } }
