@@ -45,6 +45,13 @@ final class AppWindow: NSObject, NSWindowDelegate {
         }
     }
 
+    /// Dock 에서 종료했을 때 — 앱은 두고 창만 닫아 메뉴바 전용으로 돌아감
+    static func closeAll() {
+        for window in NSApp.windows where openWindows.contains(ObjectIdentifier(window)) {
+            window.close()
+        }
+    }
+
     /// 마지막 창이 닫히면 다시 메뉴바 전용으로
     func windowWillClose(_ notification: Notification) {
         Self.openWindows.remove(ObjectIdentifier(window))
