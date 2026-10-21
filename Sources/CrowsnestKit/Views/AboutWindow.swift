@@ -37,9 +37,10 @@ final class AppWindow: NSObject, NSWindowDelegate {
         NSApp.setActivationPolicy(.regular)
         // 정책을 바꾼 직후 바로 활성화하면 창만 뜨고 포커스 · 앱 메뉴가 안 넘어올 때가 있어서 한 박자 늦춤
         DispatchQueue.main.async { [window] in
-            NSApp.activate()
+            // 메뉴바 패널은 앱을 활성화하지 않아서 macOS 14 의 양보형 activate() 는 무시될 때가 있음
+            // 그러면 창은 떠도 비활성이라 토글 · 선택 표시가 회색으로 나옴 — 사용자가 직접 연 창이라 강제로 앞으로 가져옴
+            NSApp.activate(ignoringOtherApps: true)
             window.makeKeyAndOrderFront(nil)
-            // macOS 14 부터는 활성화 요청을 시스템이 무시할 수 있어서(메뉴바 패널에서 열 때 특히) 다른 앱 창 뒤에 뜸 — 창을 직접 맨 앞으로
             window.orderFrontRegardless()
         }
     }
