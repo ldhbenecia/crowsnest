@@ -66,25 +66,6 @@ public enum AboutWindow {
     }
 }
 
-/// Info.plist 에 빌드 스크립트가 넣어둔 값 — swift run 으로 띄우면 비어 있음
-struct BuildInfo {
-    let version: String?
-    let commit: String?
-    let buildDate: String?
-
-    static let current: BuildInfo = {
-        let info = Bundle.main.infoDictionary ?? [:]
-        return BuildInfo(
-            version: info["CFBundleShortVersionString"] as? String,
-            commit: info["CrowsnestCommit"] as? String,
-            buildDate: info["CrowsnestBuildDate"] as? String
-        )
-    }()
-
-    static let repositoryURL = URL(string: "https://github.com/ldhbenecia/crowsnest")!
-    static let releasesURL = URL(string: "https://github.com/ldhbenecia/crowsnest/releases")!
-}
-
 private struct AboutView: View {
     private let info = BuildInfo.current
 
@@ -117,6 +98,7 @@ private struct AboutView: View {
             HStack(spacing: 8) {
                 Button("GitHub") { NSWorkspace.shared.open(BuildInfo.repositoryURL) }
                 Button(L("릴리스 노트", "Release Notes")) { NSWorkspace.shared.open(BuildInfo.releasesURL) }
+                Button(L("버그 제보", "Report a Bug")) { NSWorkspace.shared.open(info.bugReportURL) }
             }
             .controlSize(.large)
             .padding(.top, 20)
@@ -131,8 +113,7 @@ private struct AboutView: View {
     }
 
     private var versionLine: String {
-        guard let version = info.version else { return L("개발 빌드", "Development build") }
-        let commit = info.commit.map { " (\($0))" } ?? ""
-        return L("버전 \(version)\(commit)", "Version \(version)\(commit)")
+        guard let version = info.versionDescription else { return L("개발 빌드", "Development build") }
+        return L("버전 \(version)", "Version \(version)")
     }
 }

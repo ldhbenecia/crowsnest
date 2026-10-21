@@ -1,3 +1,4 @@
+import Foundation
 import Testing
 @testable import CrowsnestKit
 
@@ -14,6 +15,19 @@ struct PanelGroupingAndUpdateTests {
 
         #expect(groups.map(\.profile) == ["staging", "production"])
         #expect(groups.map { $0.refs.map(\.name) } == [["web", "worker"], ["api", "admin"]])
+    }
+
+    @Test func 버그_제보_주소는_양식의_버전_칸을_채운다() throws {
+        let info = BuildInfo(version: "0.2.0", commit: "abc1234", buildDate: nil)
+
+        let components = try #require(URLComponents(url: info.bugReportURL, resolvingAgainstBaseURL: false))
+        let query = Dictionary(uniqueKeysWithValues: (components.queryItems ?? []).map { ($0.name, $0.value ?? "") })
+
+        #expect(components.host == "github.com")
+        #expect(components.path == "/ldhbenecia/crowsnest/issues/new")
+        #expect(query["template"] == "bug_report.yml")
+        #expect(query["version"] == "0.2.0 (abc1234)")
+        #expect(query["macos"]?.isEmpty == false)
     }
 
     @Test(arguments: [

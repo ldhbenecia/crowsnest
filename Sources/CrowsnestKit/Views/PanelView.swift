@@ -142,6 +142,7 @@ private struct PanelMenu: View {
             Button(L("설정…", "Settings…")) { SettingsWindow.show() }
                 .keyboardShortcut(",")
             Button(L("Crowsnest 정보", "About Crowsnest")) { AboutWindow.show() }
+            Button(L("버그 제보…", "Report a Bug…")) { NSWorkspace.shared.open(BuildInfo.current.bugReportURL) }
             Divider()
             Button(L("Crowsnest 종료", "Quit Crowsnest")) { NSApplication.shared.terminate(nil) }
                 .keyboardShortcut("q")
