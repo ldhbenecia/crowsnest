@@ -41,6 +41,7 @@ struct ScreenshotTests {
         try render(PanelChrome { GeneralSettings(store: store).frame(width: SettingsWindow.width) }, scheme: .dark, name: "settings-general")
         try render(PanelChrome { NotificationSettings(store: store).frame(width: SettingsWindow.width) }, scheme: .dark, name: "settings-notifications")
         try render(PanelChrome { AWSSettings(store: store).frame(width: SettingsWindow.width) }, scheme: .dark, name: "settings-aws")
+        try render(PanelChrome { AddRoleProfileSheet(store: store) }, scheme: .dark, name: "settings-add-profile")
     }
 
     @Test func 메뉴바() throws {

@@ -54,6 +54,12 @@ struct AWSCommandLine: Sendable {
         return outputData
     }
 
+    /// 값이 없으면 aws configure get 이 종료 코드 1 로 끝나서 nil
+    func configValue(_ key: String, profile: String) async -> String? {
+        let output = try? await run(["configure", "get", key, "--profile", profile])
+        return output.flatMap { String(decoding: $0, as: UTF8.self).nonEmptyLines.first }
+    }
+
     /// 블로킹 read 를 협력 스레드 풀 밖으로 뺌
     private static func readToEnd(_ handle: FileHandle) async -> Data {
         await withCheckedContinuation { continuation in

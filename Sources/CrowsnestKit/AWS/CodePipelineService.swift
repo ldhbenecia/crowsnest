@@ -89,12 +89,10 @@ struct CodePipelineService: Sendable {
         }
     }
 
-    /// region 이 비어 있으면 aws configure get 이 종료 코드 1 로 끝남
     private func region(of profile: String, configuration: AppConfiguration) async -> String {
         if let override = configuration.regionOverrides[profile] {
             return override
         }
-        let output = try? await cli.run(["configure", "get", "region", "--profile", profile])
-        return output.flatMap { String(decoding: $0, as: UTF8.self).nonEmptyLines.first } ?? configuration.defaultRegion
+        return await cli.configValue("region", profile: profile) ?? configuration.defaultRegion
     }
 }

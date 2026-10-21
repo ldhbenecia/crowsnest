@@ -248,6 +248,7 @@ struct AWSSettings: View {
 /// aws configure 에 등록된 프로필마다 보이기 · 리전 덮어쓰기
 private struct ProfileSettings: View {
     let store: PipelineStore
+    @State private var isAddingProfile = false
 
     var body: some View {
         Section {
@@ -296,6 +297,12 @@ private struct ProfileSettings: View {
                 Text(L("프로필", "Profiles"))
                 Spacer()
                 ToolbarIconButton(
+                    systemName: "plus",
+                    help: L("롤 프로필 추가", "Add Role Profile"),
+                    action: { isAddingProfile = true }
+                )
+                .disabled(store.catalogs.isEmpty)
+                ToolbarIconButton(
                     systemName: "arrow.clockwise",
                     help: L("프로필 목록 다시 불러오기", "Reload profiles"),
                     isBusy: store.isLoadingCatalogs,
@@ -310,6 +317,126 @@ private struct ProfileSettings: View {
                 .foregroundStyle(.secondary)
         }
         .onAppear(perform: store.loadCatalogsIfNeeded)
+        .sheet(isPresented: $isAddingProfile) {
+            AddRoleProfileSheet(store: store)
+        }
+    }
+}
+
+/// 롤을 여러 개 쓸 때 — 이미 있는 프로필을 골라 롤만 다른 프로필을 ~/.aws/config 에 추가
+struct AddRoleProfileSheet: View {
+    let store: PipelineStore
+    @Environment(\.dismiss) private var dismiss
+    @State private var baseProfile: String
+    @State private var base: RoleProfile.BaseSettings?
+    @State private var usesSingleSignOn = false
+    @State private var accountID = ""
+    @State private var roleName = ""
+    @State private var roleARN = ""
+    @State private var name = ""
+    @State private var errorMessage: String?
+    @State private var isSaving = false
+
+    init(store: PipelineStore) {
+        self.store = store
+        _baseProfile = State(initialValue: store.catalogs.first?.profile ?? "")
+    }
+
+    private var profile: RoleProfile {
+        let trimmed = { (text: String) in text.trimmingCharacters(in: .whitespacesAndNewlines) }
+        let role: RoleProfile.Role = usesSingleSignOn
+            ? .singleSignOn(accountID: trimmed(accountID), roleName: trimmed(roleName))
+            : .assumeRole(roleARN: trimmed(roleARN))
+        return RoleProfile(name: trimmed(name), baseProfile: baseProfile, role: role)
+    }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            Form {
+                Section {
+                    Picker(L("기준 프로필", "Based on"), selection: $baseProfile) {
+                        ForEach(store.catalogs) { catalog in
+                            Text(catalog.profile).tag(catalog.profile)
+                        }
+                    }
+                    // SSO 로그인 정보는 기준 프로필에서 가져와서 기준이 SSO 일 때만 방식을 고를 수 있음
+                    if base?.usesSingleSignOn == true {
+                        Picker(L("방식", "Method"), selection: $usesSingleSignOn) {
+                            Text(L("SSO 롤", "SSO Role")).tag(true)
+                            Text(L("롤 전환 (role_arn)", "Assume Role (role_arn)")).tag(false)
+                        }
+                        .pickerStyle(.segmented)
+                    }
+                } footer: {
+                    Text(base == nil
+                        ? L("기준 프로필 설정을 읽는 중", "Reading the base profile")
+                        : usesSingleSignOn
+                        ? L("기준 프로필과 같은 SSO 로그인을 씀 — aws sso login 은 한 번이면 됨", "Uses the same SSO sign-in as the base profile — one aws sso login covers both")
+                        : L("기준 프로필의 자격 증명으로 이 롤을 assume 함 — MFA 가 필요한 롤은 못 씀", "Assumes this role with the base profile's credentials — roles that require MFA are not supported"))
+                        .foregroundStyle(.secondary)
+                }
+
+                Section {
+                    if usesSingleSignOn {
+                        TextField(L("계정 ID", "Account ID"), text: $accountID, prompt: Text(verbatim: "123456789012"))
+                        TextField(L("롤 이름", "Role name"), text: $roleName, prompt: Text(verbatim: "ReadOnlyAccess"))
+                    } else {
+                        TextField(L("롤 ARN", "Role ARN"), text: $roleARN, prompt: Text(verbatim: "arn:aws:iam::123456789012:role/Name"))
+                    }
+                    TextField(L("새 프로필 이름", "New profile name"), text: $name, prompt: Text(verbatim: "team-readonly"))
+                } footer: {
+                    Text(L("~/.aws/config 에 추가됨 — 지울 때는 그 파일에서 직접", "Added to ~/.aws/config — remove it there if you no longer need it"))
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .formStyle(.grouped)
+            .disabled(isSaving)
+
+            HStack {
+                if let errorMessage {
+                    Text(errorMessage)
+                        .foregroundStyle(.red)
+                        .lineLimit(2)
+                }
+                Spacer()
+                Button(L("취소", "Cancel")) { dismiss() }
+                    .keyboardShortcut(.cancelAction)
+                Button(L("추가", "Add"), action: add)
+                    .keyboardShortcut(.defaultAction)
+                    // 기준 프로필 설정을 읽는 동안엔 무엇을 쓸지 아직 모름
+                    .disabled(isSaving || name.isEmpty || base == nil)
+            }
+            .padding([.horizontal, .bottom], 20)
+        }
+        .frame(width: 460)
+        .task(id: baseProfile) {
+            base = nil
+            let loaded = await store.baseSettings(of: baseProfile)
+            // 기준 프로필을 빨리 바꾸면 늦게 끝난 앞 조회가 새 값을 덮어쓸 수 있음
+            guard !Task.isCancelled else { return }
+            base = loaded
+            usesSingleSignOn = loaded.usesSingleSignOn
+        }
+    }
+
+    private func add() {
+        guard let base else { return }
+        let profile = profile
+        if let error = profile.validationError(existingProfiles: store.catalogs.map(\.profile)) {
+            errorMessage = error
+            return
+        }
+        isSaving = true
+        errorMessage = nil
+        Task {
+            do {
+                try await store.add(profile, base: base)
+                dismiss()
+            } catch {
+                errorMessage = error.localizedDescription
+                isSaving = false
+            }
+        }
     }
 }
 

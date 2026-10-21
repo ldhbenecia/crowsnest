@@ -41,6 +41,8 @@ final class PipelineStore {
         return notices
     }
 
+    /// 프로필 추가처럼 파이프라인 조회와 상관없는 aws configure 작업용
+    @ObservationIgnored private var cli: AWSCommandLine?
     @ObservationIgnored private var service: CodePipelineService?
     /// 미리보기 스토어는 알림 권한을 묻지 않게 nil
     @ObservationIgnored private let notifier: Notifier?
@@ -88,7 +90,7 @@ final class PipelineStore {
 
     /// aws CLI 를 찾아 서비스를 새로 만듦 — aws 경로가 바뀔 때만. 자격 증명 캐시가 같이 새로 시작해서 리전 · 숨김 변경엔 안 부름
     private func connect() {
-        let cli = AWSCommandLine.locate(preferredPath: configuration.awsCLIPath)
+        cli = AWSCommandLine.locate(preferredPath: configuration.awsCLIPath)
         service = cli.map(CodePipelineService.init(cli:))
         awsCLIPath = cli?.executableURL.path(percentEncoded: false)
     }
@@ -180,6 +182,28 @@ final class PipelineStore {
     func loadCatalogsIfNeeded() {
         guard !hasLoadedCatalogs else { return }
         reloadCatalogs()
+    }
+
+    /// 프로필 추가 창에서 기준 프로필이 SSO 인지 보려고 — aws 를 못 찾았으면 빈 값
+    /// 리전은 설정 창에서 덮어쓴 값을 먼저 — 새 프로필도 기준 프로필이 실제로 보는 리전을 따라가게
+    func baseSettings(of profile: String) async -> RoleProfile.BaseSettings {
+        var settings = await cli?.baseSettings(of: profile) ?? RoleProfile.BaseSettings()
+        if let override = configuration.regionOverrides[profile] {
+            settings.region = override
+        }
+        return settings
+    }
+
+    /// ~/.aws/config 에 프로필을 쓰고 목록을 다시 불러옴 — 새 프로필의 파이프라인이 바로 고르기 화면에 나오게
+    /// base 는 추가 창이 기준 프로필을 고를 때 이미 읽어둔 값 — aws 를 또 띄우지 않게 넘겨받음
+    func add(_ profile: RoleProfile, base: RoleProfile.BaseSettings) async throws {
+        guard let cli else {
+            throw AWSError(profile: nil, kind: .other, detail: L("aws CLI 를 못 찾음", "aws CLI not found"))
+        }
+        // 중간에 실패해도 반쯤 쓰인 프로필이 목록에 보여야 고치거나 지울 수 있음
+        defer { reloadCatalogs() }
+        try await cli.add(profile, base: base)
+        logger.info("프로필 추가 · \(profile.name, privacy: .public)")
     }
 
     /// 불러오는 도중에 설정이 바뀌면 그 결과는 옛 설정 기준이라 버리고 끝나자마자 다시 불러옴
