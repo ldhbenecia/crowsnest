@@ -118,7 +118,7 @@ struct GeneralSettings: View {
                     Text(errorMessage)
                         .foregroundStyle(.secondary)
                 }
-                Toggle(L("패널에서 프로필별로 묶기", "Group pipelines by profile in the panel"), isOn: setting(store, \.groupByProfile))
+                Toggle(L("패널에서 AWS 프로필(롤)별로 묶기", "Group pipelines by AWS profile (role) in the panel"), isOn: setting(store, \.groupByProfile))
             }
 
             Section {
