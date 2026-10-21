@@ -1,0 +1,25 @@
+name: Feature request
+description: An idea that would make Crowsnest more useful
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Korean is fine too. Please leave out AWS account IDs, ARNs, and real profile or pipeline names — this repository is public.
+  - type: textarea
+    id: problem
+    attributes:
+      label: What gets in your way
+      description: Describe the situation, e.g. "I switch between three roles and lose track when several deployments run".
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: What you'd like
+      description: How you imagine it working. Rough is fine.
+  - type: input
+    id: version
+    attributes:
+      label: Crowsnest version
+      placeholder: 0.2.0 (abc1234)

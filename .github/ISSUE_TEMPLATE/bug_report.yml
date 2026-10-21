@@ -1,0 +1,62 @@
+name: Bug report
+description: Something doesn't work the way it should
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report this. Korean is fine too.
+        **Please don't paste AWS account IDs, ARNs, or real profile and pipeline names** — this repository is public. Replace them with placeholders such as `123456789012` or `my-pipeline`.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What did you see, and what did you expect instead?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Open the panel
+        2. ...
+  - type: input
+    id: version
+    attributes:
+      label: Crowsnest version
+      description: Shown in About Crowsnest. Filled in automatically when you report from the app.
+      placeholder: 0.2.0 (abc1234)
+    validations:
+      required: true
+  - type: input
+    id: macos
+    attributes:
+      label: macOS version
+      placeholder: "15.3"
+    validations:
+      required: true
+  - type: input
+    id: aws-cli
+    attributes:
+      label: aws CLI version
+      description: Output of `aws --version`
+      placeholder: aws-cli/2.22.0 Python/3.12.6 Darwin/24.3.0
+  - type: dropdown
+    id: sign-in
+    attributes:
+      label: How do your profiles sign in?
+      multiple: true
+      options:
+        - SSO (aws sso login)
+        - Assume role (role_arn)
+        - Access keys
+        - Other or not sure
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: |
+        Optional. Run this in Terminal, reproduce the problem, then paste the output. Check it for account details first.
+        `log show --last 10m --predicate 'subsystem == "com.ldhbenecia.crowsnest"'`
+      render: text
