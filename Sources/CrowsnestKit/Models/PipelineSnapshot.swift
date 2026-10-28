@@ -152,6 +152,13 @@ struct PipelineSnapshot: Sendable, Equatable {
         }
     }
 
+    /// 직전 실행 요약을 다시 받지 않고 써도 되는지
+    /// 마지막 스테이지가 끝난 직후엔 실행 상태가 잠깐 InProgress 로 남음 — 그걸 그대로 붙잡으면 다 끝났는데도 계속 진행 중으로 보여서, 안 끝난 실행은 매번 다시 받음
+    func canReuseExecution(of previous: PipelineSnapshot) -> Bool {
+        guard let status = previous.execution?.status, status != .inProgress, status != .stopping else { return false }
+        return hasSameStageProgress(as: previous)
+    }
+
     var runningStage: StageProgress? {
         guard let index = stages.firstIndex(where: { $0.status == .inProgress }) else { return nil }
         return StageProgress(position: index + 1, count: stages.count, stage: stages[index])

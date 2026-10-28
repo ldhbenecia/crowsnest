@@ -81,10 +81,10 @@ struct AWSRequestTests {
 }
 
 struct StageChangeTests {
-    private func snapshot(_ stages: [(String, String?, PipelineStatus?)]) -> PipelineSnapshot {
+    private func snapshot(_ stages: [(String, String?, PipelineStatus?)], execution: PipelineStatus = .inProgress) -> PipelineSnapshot {
         PipelineSnapshot(
             ref: PipelineRef(profile: "sample", region: "ap-northeast-1", name: "web-prod"),
-            execution: ExecutionSummary(id: "exec-1", status: .inProgress, startedAt: nil, updatedAt: nil, revision: nil),
+            execution: ExecutionSummary(id: "exec-1", status: execution, startedAt: nil, updatedAt: nil, revision: nil),
             stages: stages.map { StageSnapshot(name: $0.0, status: $0.2, executionId: $0.1, belongsToLatestExecution: true, actions: []) },
             failureReason: nil
         )
@@ -96,5 +96,15 @@ struct StageChangeTests {
         #expect(previous.hasSameStageProgress(as: snapshot([("Build", "exec-1", .inProgress), ("Deploy", "exec-0", .succeeded)])))
         #expect(!previous.hasSameStageProgress(as: snapshot([("Build", "exec-1", .succeeded), ("Deploy", "exec-0", .succeeded)])))
         #expect(!previous.hasSameStageProgress(as: snapshot([("Build", "exec-2", .inProgress), ("Deploy", "exec-0", .succeeded)])))
+    }
+
+    @Test func 스테이지가_다_끝났어도_실행이_진행_중으로_남아_있으면_다시_받는다() {
+        // 마지막 스테이지가 끝난 직후 받은 실행 요약은 아직 InProgress 일 수 있음
+        let finishedStages = [("Build", "exec-1", PipelineStatus.succeeded), ("Deploy", "exec-1", .succeeded)]
+        let caughtMidway = snapshot(finishedStages, execution: .inProgress)
+        let settled = snapshot(finishedStages, execution: .succeeded)
+
+        #expect(!snapshot(finishedStages).canReuseExecution(of: caughtMidway))
+        #expect(snapshot(finishedStages).canReuseExecution(of: settled))
     }
 }

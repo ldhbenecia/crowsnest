@@ -39,7 +39,7 @@ struct CodePipelineService: Sendable {
             )
             if let previous, let execution = previous.execution {
                 let reused = PipelineSnapshot(ref: ref, execution: execution, state: state)
-                if reused.hasSameStageProgress(as: previous) {
+                if reused.canReuseExecution(of: previous) {
                     return reused
                 }
             }
