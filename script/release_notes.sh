@@ -35,7 +35,13 @@ fi
 cat <<'EOF'
 ## Install
 
-Drag **Crowsnest** into **Applications**. The app is not notarized, so on first launch either allow it in **System Settings → Privacy & Security → Open Anyway**, or run:
+**From Terminal** — installs or updates in place and opens the app. Files downloaded with `curl` skip the "unidentified developer" warning, so nothing else is needed:
+
+```bash
+curl -fL https://github.com/ldhbenecia/crowsnest/releases/latest/download/Crowsnest.zip -o /tmp/Crowsnest.zip && { pkill -x Crowsnest; ditto -x -k /tmp/Crowsnest.zip /Applications && open /Applications/Crowsnest.app; }
+```
+
+**From the dmg** — drag **Crowsnest** into **Applications**. The app is not notarized, so on first launch either allow it in **System Settings → Privacy & Security → Open Anyway**, or run:
 
 ```bash
 xattr -dr com.apple.quarantine /Applications/Crowsnest.app

@@ -1,6 +1,6 @@
 name: Release
 
-# v0.2.0 같은 태그를 push 하면 dmg 를 만들어 GitHub Release 에 올림
+# v0.2.0 같은 태그를 push 하면 dmg · zip 을 만들어 GitHub Release 에 올림
 on:
   push:
     tags: ["v*"]
@@ -37,7 +37,8 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           DMG="dist/Crowsnest-$VERSION.dmg"
+          ZIP="dist/Crowsnest.zip"
           ./script/release_notes.sh "$GITHUB_REF_NAME" "$DMG" > release-notes.md
-          gh release create "$GITHUB_REF_NAME" "$DMG" "$DMG.sha256" \
+          gh release create "$GITHUB_REF_NAME" "$DMG" "$DMG.sha256" "$ZIP" "$ZIP.sha256" \
             --title "Crowsnest $VERSION" \
             --notes-file release-notes.md
