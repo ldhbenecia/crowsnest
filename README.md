@@ -46,7 +46,17 @@
 
 ## Install
 
-### From a release
+### From Terminal (quickest)
+
+Paste this into Terminal. It downloads the latest release, puts it in Applications and opens it. Run the same line again to update.
+
+```bash
+curl -fL https://github.com/ldhbenecia/crowsnest/releases/latest/download/Crowsnest.zip -o /tmp/Crowsnest.zip && { pkill -x Crowsnest; ditto -x -k /tmp/Crowsnest.zip /Applications && open /Applications/Crowsnest.app; }
+```
+
+Files downloaded with `curl` don't get the quarantine flag that triggers the "unidentified developer" warning, so the app opens right away — only use it with a source you trust. If `/Applications` isn't writable, replace both `/Applications` with `~/Applications` (create it with `mkdir -p ~/Applications`).
+
+### From the dmg
 
 1. Download `Crowsnest-<version>.dmg` from [Releases](https://github.com/ldhbenecia/crowsnest/releases), open it and drag **Crowsnest** onto **Applications**.
 2. Run this once in Terminal:
@@ -67,7 +77,7 @@ Crowsnest is ad-hoc signed but not notarized, because there is no paid Apple Dev
 
 It means Apple has not scanned the app, not that anything was found. Click **Done** (not **Move to Trash**), run the command from step 2 and open the app again. Instead of the command you can also go to **System Settings → Privacy & Security** and click **Open Anyway** — on macOS 15 and later, right-click → Open no longer skips the warning.
 
-A newly downloaded version is blocked the same way, so repeat step 2 after each update.
+A newly downloaded version is blocked the same way, so repeat step 2 after each update — or switch to the Terminal install above.
 
 ### From source
 

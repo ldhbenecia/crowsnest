@@ -48,7 +48,17 @@
 
 ## 설치
 
-### 릴리스에서 받기
+### 터미널로 설치 (가장 간단)
+
+터미널에 붙여 넣으면 최신 릴리스를 받아 응용 프로그램에 넣고 바로 실행함. 업데이트도 같은 줄을 다시 실행하면 됨
+
+```bash
+curl -fL https://github.com/ldhbenecia/crowsnest/releases/latest/download/Crowsnest.zip -o /tmp/Crowsnest.zip && { pkill -x Crowsnest; ditto -x -k /tmp/Crowsnest.zip /Applications && open /Applications/Crowsnest.app; }
+```
+
+`curl` 로 받은 파일에는 "확인되지 않은 개발자" 경고를 띄우는 격리 표시가 붙지 않아서 바로 열림. 그만큼 확인 단계를 건너뛰는 거라 믿을 수 있는 출처에서만 쓸 것. `/Applications` 에 권한이 없다고 나오면 두 군데의 `/Applications` 를 `~/Applications` 로 바꾸면 됨(없으면 `mkdir -p ~/Applications`)
+
+### dmg 로 설치
 
 1. [Releases](https://github.com/ldhbenecia/crowsnest/releases) 에서 `Crowsnest-<버전>.dmg` 를 받아 열고 **Crowsnest** 를 **Applications** 로 끌어다 놓기
 2. 터미널에서 한 번 실행:
@@ -69,7 +79,7 @@ Crowsnest 는 ad-hoc 서명만 하고 Apple 공증은 받지 않았음(유료 Ap
 
 Apple 이 앱을 검사하지 않았다는 뜻이지 뭔가가 발견됐다는 뜻은 아님. **완료** 를 누르고(**휴지통으로 이동** 말고) 2번 명령어를 실행한 뒤 다시 열면 됨. 명령어 대신 **시스템 설정 → 개인정보 보호 및 보안** 맨 아래의 **그래도 열기** 를 눌러도 됨. macOS 15 부터는 우클릭 → 열기로는 이 창을 넘길 수 없음
 
-새 버전을 받으면 다시 막히니 업데이트할 때마다 2번을 한 번 더 실행
+새 버전을 받으면 다시 막히니 업데이트할 때마다 2번을 한 번 더 실행. 번거로우면 위의 터미널 설치를 쓰면 됨
 
 ### 소스에서 빌드
 
