@@ -19,6 +19,11 @@ struct PipelineRow: View {
                         StageTrack(stages: snapshot.stages)
                     }
                     AttentionDetail(snapshot: snapshot)
+                    if let stage = snapshot.earlierExecutionRunningStage {
+                        Text(L("이전 실행이 \(stage.name) 단계 진행 중", "An earlier run is in \(stage.name)"))
+                            .font(.system(size: 11))
+                            .foregroundStyle(.secondary)
+                    }
                     if isExpanded {
                         StageList(stages: snapshot.stages)
                             .transition(.opacity.combined(with: .move(edge: .top)))
@@ -223,7 +228,7 @@ private struct StageList: View {
                     HStack(spacing: 6) {
                         StatusIcon(appearance: stage.appearance, size: 11)
                         Text(stage.name).font(.system(size: 11, weight: .medium))
-                        if !stage.isCurrent && stage.status != nil {
+                        if stage.isFromEarlierExecution {
                             Text(L("이전 실행", "previous run")).font(.system(size: 10)).foregroundStyle(.tertiary)
                         }
                     }

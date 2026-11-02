@@ -62,6 +62,9 @@ struct StageSnapshot: Identifiable, Sendable, Equatable {
     /// PARALLEL 모드나 SUPERSEDED 대기 중엔 예전 실행이 아직 돌고 있을 수 있어서 진행 중이면 현재로 봄
     var isCurrent: Bool { belongsToLatestExecution || status == .inProgress }
 
+    /// 최신 실행이 아닌 앞 실행이 남긴 상태 — 진행 중이어도 색은 살리되 "이전 실행" 이라고 붙임
+    var isFromEarlierExecution: Bool { !belongsToLatestExecution && status != nil }
+
     /// 승인 말고 돌고 있는 액션이 없을 때만 — 승인이랑 빌드가 같이 돌면 진행 중으로 봄
     var isAwaitingApproval: Bool {
         let running = actions.filter { $0.status == .inProgress }
@@ -157,6 +160,12 @@ struct PipelineSnapshot: Sendable, Equatable {
     func canReuseExecution(of previous: PipelineSnapshot) -> Bool {
         guard let status = previous.execution?.status, status != .inProgress, status != .stopping else { return false }
         return hasSameStageProgress(as: previous)
+    }
+
+    /// 최신 실행이 승인 등에서 멈춘 사이 앞 실행이 뒤 스테이지를 돌고 있을 때 — 상태 줄엔 앞쪽 하나만 나와서 따로 알려줌
+    var earlierExecutionRunningStage: StageSnapshot? {
+        guard let running = runningStage?.stage else { return nil }
+        return stages.first { $0.status == .inProgress && $0.isFromEarlierExecution && $0.name != running.name }
     }
 
     var runningStage: StageProgress? {

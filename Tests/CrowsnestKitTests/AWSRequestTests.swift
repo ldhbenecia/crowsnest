@@ -98,6 +98,24 @@ struct StageChangeTests {
         #expect(!previous.hasSameStageProgress(as: snapshot([("Build", "exec-2", .inProgress), ("Deploy", "exec-0", .succeeded)])))
     }
 
+    @Test func 최신_실행이_멈춘_사이_앞_실행이_뒤_스테이지를_돌면_따로_알려준다() {
+        let stages = [
+            StageSnapshot(name: "Approve", status: .inProgress, executionId: "exec-1", belongsToLatestExecution: true, actions: []),
+            StageSnapshot(name: "Build", status: .succeeded, executionId: "exec-0", belongsToLatestExecution: false, actions: []),
+            StageSnapshot(name: "Deploy", status: .inProgress, executionId: "exec-0", belongsToLatestExecution: false, actions: []),
+        ]
+        let snapshot = PipelineSnapshot(
+            ref: PipelineRef(profile: "sample", region: "ap-northeast-1", name: "web-prod"),
+            execution: ExecutionSummary(id: "exec-1", status: .inProgress, startedAt: nil, updatedAt: nil, revision: nil),
+            stages: stages,
+            failureReason: nil
+        )
+
+        #expect(snapshot.runningStage?.stage.name == "Approve")
+        #expect(snapshot.earlierExecutionRunningStage?.name == "Deploy")
+        #expect(stages.map(\.isFromEarlierExecution) == [false, true, true])
+    }
+
     @Test func 스테이지가_다_끝났어도_실행이_진행_중으로_남아_있으면_다시_받는다() {
         // 마지막 스테이지가 끝난 직후 받은 실행 요약은 아직 InProgress 일 수 있음
         let finishedStages = [("Build", "exec-1", PipelineStatus.succeeded), ("Deploy", "exec-1", .succeeded)]
