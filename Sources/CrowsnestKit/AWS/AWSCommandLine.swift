@@ -37,6 +37,9 @@ struct AWSCommandLine: Sendable {
         let errorPipe = Pipe()
         process.standardOutput = outputPipe
         process.standardError = errorPipe
+        // waitUntilExit 는 런루프로 종료를 기다려서, await 뒤 다른 협력 스레드에서 부르면 aws 가 끝나도 영영 안 깨어날 때가 있음
+        let exited = DispatchSemaphore(value: 0)
+        process.terminationHandler = { _ in exited.signal() }
         try process.run()
 
         // aws sso login 처럼 브라우저를 기다리다 버려진 명령이 계속 남지 않게
@@ -44,11 +47,12 @@ struct AWSCommandLine: Sendable {
             // 한쪽만 먼저 읽으면 다른 쪽 파이프 버퍼가 차서 프로세스가 멈출 수 있음
             async let output = Self.readToEnd(outputPipe.fileHandleForReading)
             async let errorOutput = Self.readToEnd(errorPipe.fileHandleForReading)
-            return await (output, errorOutput)
+            async let exit: Void = Self.wait(for: exited)
+            let (outputData, errorData, _) = await (output, errorOutput, exit)
+            return (outputData, errorData)
         } onCancel: {
             if terminatesOnCancel { process.terminate() }
         }
-        process.waitUntilExit()
 
         guard process.terminationStatus == 0 else {
             throw AWSError.commandLine(
@@ -71,6 +75,15 @@ struct AWSCommandLine: Sendable {
         await withCheckedContinuation { continuation in
             DispatchQueue.global(qos: .utility).async {
                 continuation.resume(returning: handle.readDataToEndOfFile())
+            }
+        }
+    }
+
+    private static func wait(for semaphore: DispatchSemaphore) async {
+        await withCheckedContinuation { continuation in
+            DispatchQueue.global(qos: .utility).async {
+                semaphore.wait()
+                continuation.resume()
             }
         }
     }
